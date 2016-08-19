@@ -39,6 +39,8 @@ Local versions of the following software can be incorporated into Flib's pipelin
 3- SPINE-X
 4- BLAST
 
+The script *install\_dependencies.py* can be used to install Flib's dependencies.
+
 To generate a SAINT2-compliant library, the Python script "process\_new.py" should be executed. This script requires Python 2.6 or higher and the Biopython Module.
 
 ## 3.CONFIGURATION

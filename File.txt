@@ -1,8 +1,0 @@
-CASP/*
-PDBrepresentative/*
-Training/*
-File.txt
-CASP
-Training
-PDBrepresentative
-1AIU.lib3000
