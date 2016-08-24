@@ -1,15 +1,16 @@
 #!/bin/bash
 
 # SET UP THE PATHS FOR REQUIRED DEPENDENCIES:
-export spineXblast=/home/felix/opt/databases/blastdb/uniref90/uniref90
-export spineXcodir=/home/felix/opt/spineXpublic
-export PSIPRED=/home/felix/opt/psipred
-export BLASTDB=/home/felix/opt/databases/blastdb/uniref90/uniref90
-export HHSUITE=/home/felix/opt/hhsuite
-export HHLIB=/home/felix/opt/hhsuite
-export HHBLITSDB=/home/felix/opt/databases/hhsuitedb/pdb70_04Aug16/pdb70_04Aug16
-export FLIB=/home/felix/opt/Flib_v1.01
-export PDB=/home/felix/opt/databases/pdb
+export spineXblast=/data/cockatrice/wilman/progs/ncbi-blast-2.2.27+/
+export spineXcodir=/users/oliveira/SPINEX/spineXpublic/
+export PSIPRED=/users/oliveira/PSIPRED
+export BLAST=/users/oliveira/blast/blast-2.2.17/bin/
+export BLASTDB=/users/oliveira/PSIPRED/unirefdb90
+export BLAST_PDB=/users/oliveira/blast/blast-2.2.17/db/pdb_seqres.txt
+export HHSUITE=/users/oliveira/hhsuite-2.0.16-linux-x86_64/
+export HHBLITSDB=$HHSUITE/hhblits_database/pdb70_05Jun14
+export FLIB=/users/oliveira/Flib/
+export PDB=/users/oliveira/PDB/
 
 # READ ARGUMENTS:
 OUTPUT=$1
@@ -18,11 +19,11 @@ OUTPUT=$1
 # ADJUST THE FILES THAT WILL BE GENERATED/COMPUTED:
 generate_ss=false		# Change value to "true" if running local version of PSIPRED.
 generate_pssm=false		# Change value to "true" if running local version of SPINE-X.
-generate_spinex=false		# Change value to "true" if running local version of SPINE-X.
-generate_hhr=false		# Change value to "true" if running local version of HHBlits.	
-generate_flib=true		# Change value to "true" if running local version of Flib. 
-parse_flib=true			# Change value to "true" if parsing Flib libraries to SAINT2 format. 
-remove_homologs=false		# Change value to "true" if removing homologs from frag. libraries.
+generate_spinex=false	# Change value to "true" if running local version of SPINE-X.
+generate_hhr=true		# Change value to "true" if running local version of HHBlits.	
+generate_flib=false		# Change value to "true" if running local version of Flib. 
+parse_flib=false 		# Change value to "true" if parsing Flib libraries to SAINT2 format. 
+remove_homologs=false	# Change value to "true" if removing homologs from frag. libraries.
 
 ##### GENERAL SET UP #####
 
@@ -38,7 +39,7 @@ fi
 # Generate .mat file
 if [ "$generate_pssm" = true ] ; then
 	echo "Generating PSSM file for SPINE-X torsion angle prediction:"
-	$spineXcodir/bin/psiblast -db $BLASTDB -out_pssm $OUTPUT.txt -evalue 0.02 -query ./$OUTPUT.fasta.txt -out_ascii_pssm ./$OUTPUT.mat -out $OUTPUT.out -num_iterations 5
+	$spineXblast/bin/psiblast -db $BLASTDB -out_pssm $OUTPUT.txt -evalue 0.02 -query ./$OUTPUT.fasta.txt -out_ascii_pssm ./$OUTPUT.mat -out $OUTPUT.out -num_iterations 5
 	echo "Done"
 	echo "-------------------------------------"
 fi
@@ -64,19 +65,18 @@ fi
 # Generate list of Homologs 
 if [ "$remove_homologs" = true ] ; then
        # Generate list of homologs
-       $BLAST/blastall -p blastp -i ./$OUTPUT.fasta.txt -d $BLASTDB/pdb_seqres.txt -e 0.05 -m 8  > $OUTPUT.blast
+       $BLAST/blastall -p blastp -i ./$OUTPUT.fasta.txt -d $BLAST_PDB -e 0.05 -m 8  > $OUTPUT.blast
        cat $OUTPUT.blast | awk '{print substr($2,1,4)}' | sort | uniq > $OUTPUT.homol 
 fi
 
 ##### FLIB #####
 if [ "$generate_flib" = true ] ; then
 	echo "Generating FLIB File:"
-       	$FLIB/Flib $OUTPUT > $OUTPUT.lib3000 2> $OUTPUT.log           # Generates LIB3000
+   	$FLIB/Flib $OUTPUT $PDB > $OUTPUT.lib3000 2> $OUTPUT.log           # Generates LIB3000
 	sort -k 10,10n -k 13,13n $OUTPUT.lib3000 > $OUTPUT.tmp;                   # Sorts LIB3000
 	mv $OUTPUT.tmp $OUTPUT.lib3000;                                           
 
-
-        ### HOMOLOG REMOVAL ####
+    ### HOMOLOG REMOVAL ####
 	if [ "$remove_homologs" = true ] ; then
 		cp $OUTPUT.lib3000 $OUTPUT.lib3000_nh;
 		for HOMOLOG in $(cat $OUTPUT.homol)
@@ -118,11 +118,11 @@ if [ "$generate_flib" = true ] ; then
 	fi
 	$FLIB/filterlib2 $OUTPUT $OUTPUT.rmsd_9_lib                 # Filter LIB_HHR so it does not contain more than 20 frags. per position.
 	awk '$6 == "H" {print }' $OUTPUT.lib_final > $OUTPUT.combined
-        awk '$6 == "B" {print }' $OUTPUT.lib20_ori >> $OUTPUT.combined
-        awk '$6 == "O" {print }' $OUTPUT.lib_final >> $OUTPUT.combined
-        awk '$6 == "O" {print }' $OUTPUT.lib20	   >> $OUTPUT.combined
-        awk '$6 == "L" {print }' $OUTPUT.lib_final >> $OUTPUT.combined
-        awk '$6 == "L" {print }' $OUTPUT.lib20 >> $OUTPUT.combined
+    awk '$6 == "B" {print }' $OUTPUT.lib20_ori >> $OUTPUT.combined
+    awk '$6 == "O" {print }' $OUTPUT.lib_final >> $OUTPUT.combined
+    awk '$6 == "O" {print }' $OUTPUT.lib20	   >> $OUTPUT.combined
+    awk '$6 == "L" {print }' $OUTPUT.lib_final >> $OUTPUT.combined
+    awk '$6 == "L" {print }' $OUTPUT.lib20     >> $OUTPUT.combined
 
 
 	sort -k 10,10n -k 13,13nr $OUTPUT.combined > $OUTPUT.lib                        # The resulting library is LIB
