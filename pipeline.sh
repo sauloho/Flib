@@ -20,9 +20,9 @@ OUTPUT=$1
 generate_ss=false		# Change value to "true" if running local version of PSIPRED.
 generate_pssm=false		# Change value to "true" if running local version of SPINE-X.
 generate_spinex=false	# Change value to "true" if running local version of SPINE-X.
-generate_hhr=true		# Change value to "true" if running local version of HHBlits.	
-generate_flib=false		# Change value to "true" if running local version of Flib. 
-parse_flib=false 		# Change value to "true" if parsing Flib libraries to SAINT2 format. 
+generate_hhr=false		# Change value to "true" if running local version of HHBlits.	
+generate_flib=true		# Change value to "true" if running local version of Flib. 
+parse_flib=true 		# Change value to "true" if parsing Flib libraries to SAINT2 format. 
 remove_homologs=false	# Change value to "true" if removing homologs from frag. libraries.
 
 ##### GENERAL SET UP #####
