@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 	char Header[82],Chain,type,ALN_Seq[200];
 	float rmsd,avg_length=0.0,torsion;
 	double resolution, CUTOFF;
-  	char DSSP_Seq[1000],SS[1000];		  /* The query protein's secondary structure			*/	
+  	char c,DSSP_Seq[1000],SS[1000];		  /* The query protein's secondary structure			*/	
 	FILE *input_fasta;
 	FILE *library;
 	FILE *input_dssp;
@@ -37,20 +37,9 @@ int main(int argc, char *argv[])
 
 	/* READ INPUT SECONDARY STRUCTURE SEQUENCE */		
 	strcpy(AUX,argv[2]);
-	input_dssp = fopen(strcat(AUX,".fasta.ss"),"r");
+	input_dssp = fopen(strcat(AUX,".dssp_psi"),"r");
+	fscanf(input_dssp,"%s",DSSP_Seq);
 
-
-	/* READ INPUT SECONDARY STRUCTURE SEQUENCE */
-   	DSSP_Seq[0]=fgetc(input_dssp);	
-	for(i=0; 1; i++)
-	{
-    	DSSP_Seq[i]=fgetc(input_dssp);
-		if(DSSP_Seq[i]=='\n'|| DSSP_Seq[i]== EOF )
-		{
-			DSSP_Seq[i]='\0';
-			break;
-		}
-	}
 	//printf("%s   %d\n",DSSP_Seq,strlen(DSSP_Seq));
 	
 	l=0; h=0; b=0; cov2=0;
@@ -81,10 +70,11 @@ int main(int argc, char *argv[])
 	/* READ INPUT FASTA SEQUENCE */
 	input_fasta = fopen(strcat(argv[2],".fasta.txt"),"r");
 	fscanf(input_fasta,"%s",Header);
+	for(c=fgetc(input_fasta);c!='\n';c=fgetc(input_fasta));
 	fscanf(input_fasta,"%s",Fasta_Seq);
 	while(fscanf(input_fasta,"%s",AUX)!=EOF) 	
 		strcat(Fasta_Seq,AUX);
-
+	
 	total = strlen(Fasta_Seq);
 	for(i=0;i<total;i++)
 	{
@@ -96,6 +86,10 @@ int main(int argc, char *argv[])
 
 	for(j=0;fscanf(library,"%s\t%c\t%d\t%d\t%s\t%c\t%d\t%d\t%d\t%d\t%lf\t%d\t%f\t%f\n",Header,&Chain,&start1,&end,ALN_Seq,&type,&match_score,&seq_score,&length,&start2,&resolution,&ss_score,&torsion,&rmsd)!=EOF;j++)
 	{
+		if(rmsd < 0.0)
+		{
+			continue;
+		}
 		avg_length+=length;
 		for(k=start2; k < start2+length && k<total;k++)
 			Covering2[k]=1;
@@ -166,22 +160,22 @@ int main(int argc, char *argv[])
 		{
 			switch(SS[k])
 			{
-	             case 'H':
-					good_h++;
-	                break;
-	             case 'B':
-					good_b++;
-	                break;
-	             case 'L':
-					good_l++;
-                 break;
+		             case 'H':
+				good_h++;
+	                	break;
+		             case 'B':
+				good_b++;
+	                	break;
+	        	     case 'L':
+				good_l++;
+	        	        break;
 			}
 			cov++;
 		}
 	}
 	start2++;
 
-	printf("%.2f\t%.2f\t%.2f",(float)j/start2,(float)numgood/j,(float)cov/k);
+	printf("%.2f\t%.2f\t%.2f",(float)j/start2,(float)numgood/j,(float)cov/cov2);
 	for(i=0;i<4;i++)
 		printf("\t%.3f",(float)Numgood[i]/(Total[i]));
 	printf("\t%.3f\t%.3f\t%.3f\t%.3f\n",(float)good_h/h,(float)good_b/b,(float)good_l/l,avg_length/(float)j);

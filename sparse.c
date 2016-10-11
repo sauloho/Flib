@@ -105,7 +105,7 @@ double dihed(double list[3][4])
 	abs_n2 = n_2[0] * n_2[0] + n_2[1] * n_2[1] + n_2[2] *  n_2[2];
 	abs_n1_n2 = abs_n1 * abs_n2;
 
-	if(abs_n1_n2 < 0)
+	if(abs_n1_n2 < 0 || abs_n1_n2 != abs_n1_n2 )
 	{
 		fprintf(stderr,"warning: dihedral angle not defined \n");
 		dihedral =0;
@@ -121,6 +121,9 @@ double dihed(double list[3][4])
 		dihedral = -acos(n1_n2/sqrt(abs_n1_n2));
 
 	dihedral = (180.0/3.14159) * dihedral;
+
+	if (dihedral!=dihedral)
+		return 0;
 	return dihedral;
 }
 
@@ -151,28 +154,28 @@ float Calc_dih(RESIDUE * OneP,RESIDUE * One,RESIDUE * OneA, float * temp)
 		{
 			List_phi[0][1] = One->atom[a]->x;
 			List_phi[1][1] = One->atom[a]->y;
-    		List_phi[2][1] = One->atom[a]->z;
-    		List_psi[0][0] = One->atom[a]->x;
-    		List_psi[1][0] = One->atom[a]->y;
-    		List_psi[2][0] = One->atom[a]->z;
+    			List_phi[2][1] = One->atom[a]->z;
+	    		List_psi[0][0] = One->atom[a]->x;
+    			List_psi[1][0] = One->atom[a]->y;
+    			List_psi[2][0] = One->atom[a]->z;
   		}
 		else if(!strcmp(One->atom[a]->atomname,"CA"))
 		{
-	    	List_phi[0][2] = One->atom[a]->x;
-		    List_phi[1][2] = One->atom[a]->y;
-		    List_phi[2][2] = One->atom[a]->z;
-		    List_psi[0][1] = One->atom[a]->x;
-		    List_psi[1][1] = One->atom[a]->y;
-		    List_psi[2][1] = One->atom[a]->z;
+	     		List_phi[0][2] = One->atom[a]->x;
+			List_phi[1][2] = One->atom[a]->y;
+			List_phi[2][2] = One->atom[a]->z;
+			List_psi[0][1] = One->atom[a]->x;
+			List_psi[1][1] = One->atom[a]->y;
+			List_psi[2][1] = One->atom[a]->z;
 		}
 		else if(!strcmp(One->atom[a]->atomname,"C"))
 		{
-		    List_phi[0][3] = One->atom[a]->x;
-		    List_phi[1][3] = One->atom[a]->y;
-		    List_phi[2][3] = One->atom[a]->z;
-		    List_psi[0][2] = One->atom[a]->x;
-		    List_psi[1][2] = One->atom[a]->y;
-		    List_psi[2][2] = One->atom[a]->z;
+			List_phi[0][3] = One->atom[a]->x;
+			List_phi[1][3] = One->atom[a]->y;
+			List_phi[2][3] = One->atom[a]->z;
+			List_psi[0][2] = One->atom[a]->x;
+			List_psi[1][2] = One->atom[a]->y;
+			List_psi[2][2] = One->atom[a]->z;
 		}
 	}
 

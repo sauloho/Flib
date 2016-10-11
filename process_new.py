@@ -71,8 +71,9 @@ if __name__ == '__main__':
 		length = int(frag[8])
 		pos = frag[9]
 		score = "%.2f" % ( math.exp((float(frag[12].rstrip()))/1000))
-	  	if float(score)<0.1:
-			score="0.10"
+	  	if float(score)<0.1 or math.isnan(float(score)):
+			score="1.0"
+            
 		try:
 			pp = get_pp(pdb, chain,start,length,seq) 			# Polypeptide pp now contains atomic information for fragment.
 		except:

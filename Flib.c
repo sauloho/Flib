@@ -71,10 +71,10 @@ int score_ss(char A, char B)
 {
 	if( A=='C' )
 		A=' ';
-	if( B =='I' || B=='T' || B=='S' )
+	if( B=='T' || B=='S' )
 		B=' ';
 
-	if(B=='G' && A==' ')
+	if(B=='I' && A=='H')
 		return 1;
 	if(B=='G' && A=='H')
 		return 1;
@@ -95,7 +95,6 @@ float score_ssconf(CONF confidence, char B)
 		return confidence.helix;
 	if( B=='E' )
 		return confidence.beta;
-	return 0.0;
 }
 
 int main(int argc,char* argv[])
@@ -125,20 +124,20 @@ int main(int argc,char* argv[])
 	char Dict2[21]={'G','A','V','L','M','I','F','Y','W','S','T','C','P','N','Q','K','R','H','D','E','\0'};              /* A one-letter code residue dictionary. */	
 	char PATH[1000];
 	int path_len;
-	float rmsd;
+	float rmsd,aux;
 	float probability;
 	float Angles[MAXLEN][4];
 	double resolution;			  /* The resolution of the crystal structure on the DB.	   */	
-	double new_score;			  /* The predicted torsion angle score					   */	
+	double new_score,dist1,dist2;			  /* The predicted torsion angle score					   */	
 
 	CONF Fasta_Conf[MAXLEN];      /* The confidence in the predicted secondary structure   */
 	fragment *new_frag;
 	FILE *input_fasta,*input_ss,*input_pdb,*input_phipsi,*blossum_file,*logods;
 	srand (time(NULL));
 
-	if(argc != 2  )
+	if(argc != 2)
 	{
-		printf("Usage: %s PDB_CODE \n",argv[0]);
+		printf("Usage: %s PDB_CODE\n",argv[0]);
 		return 0;
 	}
 
@@ -159,10 +158,10 @@ int main(int argc,char* argv[])
 	if (input_pdb == NULL) {printf("Protein database file is missing: parsedPDB_new.txt\n"); return 0;}
 
 	strcpy(AUX,argv[1]);
-	input_phipsi = fopen(strcat(AUX,".spXout"),"r");
-	if (input_phipsi == NULL) {printf("SPINE-X input file (predicted torsion angles) not found!\n"); return 0;}
+    	input_phipsi = fopen(strcat(AUX,".spd3"),"r");
+	if (input_phipsi == NULL) {printf("SPIDER2 input file (predicted torsion angles) not found!\n"); return 0;}
 
-        sprintf(PATH,"%s/blossum62.txt",getenv("FLIB"));
+	sprintf(PATH,"%s/blossum62.txt",getenv("FLIB"));
 	blossum_file = fopen(PATH,"r");
 	if (blossum_file == NULL) {printf("BLOSSUM file not found!\n"); return 0;}
 
@@ -187,24 +186,25 @@ int main(int argc,char* argv[])
 	if(i!=m) { printf("ERROR: Fasta sequence and pred. secondary structure have different lengths!\n"); return 0; }
 	Fasta_SS[m]='\0'; 
 	/***** END OF READ QUERY'S PREDICTED SECONDARY STRUCTURE SEQUENCE *****/
-	
+
 	/***** READ QUERY'S PREDICTED TORSION ANGLES *****/
 	
-	/* Remove Header from SPINE-X output file */
+	/* Remove Header from SPIDER2 output file */
 	for(c=fgetc(input_phipsi);c!='\n';c=fgetc(input_phipsi));
 
-	for(i=0;fscanf(input_phipsi,"%d %s %s %f %f",&k,Res,SS,&Angles[i][0],&Angles[i][1])!=EOF;i++)
-	{
-		Angles[i][2]=1.0; Angles[i][3]=1.0;
+	for(i=0;fscanf(input_phipsi,"%d %s %s %f %f %f",&k,Res,SS,&aux,&Angles[i][0],&Angles[i][1])!=EOF;i++)
 		for(c=fgetc(input_phipsi);c!='\n';c=fgetc(input_phipsi));
-	}
+
+
+        if(i!=m) { printf("ERROR: Fasta sequence and pred. torsion angles have different lengths!\n"); return 0; }
 
 	/***** END OF READ QUERY'S PREDICTED TORSION ANGLES *****/
 	
 	/***** READ BLOSSUM MATRIX FOR THE ALIGNMENT *****/
 	for(i=0;i<24;i++)
 		for(j=0;j<24;j++)
-			fscanf(blossum_file,"%d",&Blossum[i][j]);  
+			fscanf(blossum_file,"%hd",&Blossum[i][j]);  
+
 	/***** END OF READ BLOSSUM MATRIX FOR THE ALIGNMENT *****/
 	
 	/***** READ FREAD ENV. TABLES *****/
@@ -250,8 +250,8 @@ int main(int argc,char* argv[])
 	{
 		/* Read DB protein fasta sequence */
 		fscanf(input_pdb,"%s",DB_Seq);			/* Extract the protein sequence from the database. */	
-		fgetc(input_pdb); 					    /* Get the line break char (chomp) 				   */
-		n=strlen(DB_Seq);						/* Get the length of the DB protein sequence 	   */
+		fgetc(input_pdb); 				/* Get the line break char (chomp) 				   */
+		n=strlen(DB_Seq);				/* Get the length of the DB protein sequence 	   */
 
 		//printf("%s %d\n",DB_Seq,n);
 		
@@ -306,9 +306,6 @@ int main(int argc,char* argv[])
 				/* Find predominant SS on the fragment */
 				switch(DB_SS[k2])
 				{
-					case ' ':
-						loop++;
-						break;
 					case 'H':
 						helix++;
 						break; 
@@ -316,13 +313,14 @@ int main(int argc,char* argv[])
 						beta++;
 						break;
 					default:
+						loop++;
 						break; 
 				}
 			}
 			
-			if( ( ramach_score > 6 || ( helix < length/2+1 && beta < length/2 + 1 && ramach_score > 0 )) && (Total_rnd[start1] < MAX_FRAG || ramach_score > Worst_rnd[start1] ) )
+			if( ( ramach_score > 6 || ( helix < (length/2+1) && beta < (length/2+1) && ramach_score > 0 )) && (Total_rnd[start1] < MAX_FRAG || ramach_score > Worst_rnd[start1] ) )
 			{	
-				if(!( helix < length/2+1 && beta < length/2 + 1 ) && ss_score < 2 )
+				if( (!( helix < length/2+1 && beta < length/2 + 1 ))  && ss_score < 0 )
 					continue; 
 
 				new_frag=malloc(sizeof(fragment));
@@ -342,11 +340,11 @@ int main(int argc,char* argv[])
 				AUX[k]='\0';
 				strcat(new_frag->line,AUX);
 
-				if(helix>length/2+1)
+				if(helix>=length/2+1)
 					strcat(new_frag->line,"\tH");
-				else { 	if(beta>length/2+1)
+				else { 	if(beta>=length/2+1)
 					strcat(new_frag->line,"\tB");
-				else { 	if(loop>length/2+1)
+				else { 	if(loop>=length/2+1)
 					strcat(new_frag->line,"\tL");
 				else 
 					strcat(new_frag->line,"\tO"); } }
@@ -421,7 +419,6 @@ int main(int argc,char* argv[])
 				}
 				else
 				{
-		 		//	 A[i][j]       = A[i-1][j-1]       + Blossum[find(Fasta_Seq[i-1],Dict1)][find(DB_Seq[j-1],Dict1)];
 					 A[i][j]	   = 0;
 					 A_len[i][j]   = A_len[i-1][j-1]   + 1;
 					 A_SS[i][j]    = A_SS[i-1][j-1]    + score_ss(Fasta_SS[i-1],DB_SS[j-1]);
@@ -448,7 +445,7 @@ int main(int argc,char* argv[])
 
 				if( start1 < 0 || start1 >= m || start2 < 0 || start2 >=n ) continue;				
 							
-				if( (Total[start1] < MAX_FRAG || A_ramach[i][j] > Worst[start1] )  && A_len[i][j] > 5 /*&& A_SS[i][j] > 0*/ && A_len[i][j] < 20 /*A_ramach[i][j] > 50*/)
+				if( (Total[start1] < MAX_FRAG || A_ramach[i][j] > Worst[start1] )  && A_len[i][j] > 5 && A_SS[i][j] >= 0 && A_len[i][j] < 20)
 				{	
 					loop=0; helix=0; beta=0;
 					/* Find predominant SS on the fragment */
@@ -457,9 +454,6 @@ int main(int argc,char* argv[])
 						AUX[k]=DB_Seq[start2+k];
 						switch(DB_SS[start2+k])
 						{
-								case ' ':
-									loop++;
-									break;
 								case 'H':
 									helix++;
 									break; 
@@ -467,13 +461,11 @@ int main(int argc,char* argv[])
 									beta++;
 									break;
 								default:
+									loop++;
 									break; 
 						}
 					}
 					AUX[k]='\0';
-
-					if( !( helix < A_len[i][j]/2+1 && beta < A_len[i][j]/2 + 1 ) && A_SS[i][j] < 2 && A_ramach[i][j] < 70  )
-						continue;
 
 
 					if(A_ramach[i][j] > 99) A_ramach[i][j] = 99; /* This should not happen very often! */
@@ -580,13 +572,23 @@ int main(int argc,char* argv[])
 					}
 					if( coordcol2(all,Header,Chain,DB_Seq,&start_res) ) 
 						continue;
+
 					new_score=0.0;
 					for(k=0, k2=start_res ; k2 < start_res+length ; k++, k2++)
 					{
 						if(k2<1 || k2 >= all->numres-1)
 							continue;
 						Phi[k] = Calc_dih( all->res[k2-1] , all->res[k2] , all->res[k2+1], &Psi[k]);
-						new_score+= sqrt(pow(Phi[k]-Angles[start2+k][0],2)/Angles[start2+k][2] + pow(Psi[k]-Angles[start2+k][1],2)/Angles[start2+k][3]);
+                                                dist1= min(fabs(Phi[k]-Angles[start2+k][0]), fabs(fabs(Phi[k])+fabs(Angles[start2+k][0]) - 360.0) );
+                                                dist2= min(fabs(Psi[k]-Angles[start2+k][1]), fabs(fabs(Psi[k])+fabs(Angles[start2+k][1]) - 360.0) );
+
+
+                                                if(dist1 != dist1 || dist2 != dist2 || fabs(dist1) > 180 || fabs(dist2) > 180)
+						{
+							new_score=9999.0;
+							break;
+						}						
+						new_score+= dist1+dist2; 
 					}
 					if(!VALIDATE)
 					{
@@ -636,15 +638,25 @@ int main(int argc,char* argv[])
 					
 					if( coordcol2(all,Header,Chain,DB_Seq,&start_res) ) 
 						continue;
+
 					new_score=0.0;
 					for(k=0, k2=start_res ; k2 < start_res+length && k2 < all->numres; k++, k2++)
 					{
+
 						if(k2<1)
 							continue;
 						Phi[k] = Calc_dih( all->res[k2-1] , all->res[k2] , all->res[k2+1], &Psi[k]);
-						new_score+= sqrt(pow(Phi[k]-Angles[start2+k][0],2)/Angles[start2+k][2] + pow(Psi[k]-Angles[start2+k][1],2)/Angles[start2+k][3]);
+						dist1= min(fabs(Phi[k]-Angles[start2+k][0]), abs(fabs(Phi[k])+fabs(Angles[start2+k][0]) - 360) );
+                                                dist2= min(fabs(Psi[k]-Angles[start2+k][1]), abs(fabs(Psi[k])+fabs(Angles[start2+k][1]) - 360) );
+
+
+						if( dist1 != dist1 || dist2 != dist2 || fabs(dist1) > 180.00 || fabs(dist2) > 180.00)
+						{
+							new_score=9999.0;
+							break;
+						}
+						new_score += dist1+dist2;
 					}
-					
 					if(!VALIDATE)
 					{
 							new_frag->line[strlen(new_frag->line)-1]='\t';

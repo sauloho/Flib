@@ -49,13 +49,14 @@ int coordcol(char bum[FILEL],int u, int length, int start_res,char ChainQ,char* 
 
 	/*******************************************************/
 
+
 	/* First look for the position on the sequence of the file */
 	if(Seq!=NULL)
 	{	
 		IN=fopen(bum,"r");
 		if (IN == NULL)
 	    	{
-    		     fprintf(stderr,"unable to open file %s in coordcol\n",bum);  /* error message if file unavailable */
+    		    (void)fprintf(stderr,"unable to open file %s in coordcol\n",bum);  /* error message if file unavailable */
 	    	     return u;
     		}
 		while(!feof(IN))
@@ -76,6 +77,8 @@ int coordcol(char bum[FILEL],int u, int length, int start_res,char ChainQ,char* 
 				}
 			}
 		}
+		fclose(IN);
+	
 		pch = strstr (Sequence,Seq);
 		if(pch!=NULL)
 		{
@@ -88,50 +91,58 @@ int coordcol(char bum[FILEL],int u, int length, int start_res,char ChainQ,char* 
 			//fprintf(stderr,"DID NOT FIND FRAG!\n");
 			return u;
 		}
-	//	start_res = find_substring(Sequence,Seq);
+	}
+	
 	/*******************************************************/
 
-		a=0;
-		natom=0;
-		count=-1;
-		old_count_aux = -1;
+	a=0;
+	natom=0;
+	count=-1;
+	old_count_aux = -1;
 
-		//printf("%c %d %d\n",ChainQ,start_res,length);
-		fseek(IN, 0, SEEK_SET);
-		while(!feof(IN))
+	IN=fopen(bum,"r");
+	if (IN == NULL)
+	{
+        	(void)fprintf(stderr,"unable to open file %s in coordcol\n",bum);  /* error message if file unavailable */
+	         return u;
+        	/*exit(8); Exit to operating system */
+    	}
+	//printf("%c %d %d\n",ChainQ,start_res,length);
+	while(!feof(IN))
+	{
+		string_ptr = fgets(line,sizeof(line),IN);
+		line[strlen(line)-1] = '\0';
+		//fprintf(stderr,"%s\n",line);
+		sscanf(line,"%4s%*9c%3s%*1c%3s%*1c%1c%*1c%3d%*5c%9f%9f%9f\n",type,name,restype,&chain,&count_aux,&xcoord,&ycoord,&zcoord);
+		//fprintf(stderr,"%4s %3s %3s %1c %3d %9f %9f %9f\n",type,name,restype,chain,count_aux,xcoord,ycoord,zcoord);		
+		if( ( !strcmp(type,"ATOM") ) && chain == ChainQ )
 		{
-			string_ptr = fgets(line,sizeof(line),IN);
-			//fprintf(stderr,"%s\n",line);
-			sscanf(line,"%4s%*9c%3s%*1c%3s%*1c%1c%*1c%3d%*5c%9f%9f%9f\n",type,name,restype,&chain,&count_aux,&xcoord,&ycoord,&zcoord);
-			//fprintf(stderr,"%4s %3s %3s %1c %3d %9f %9f %9f\n",type,name,restype,chain,count_aux,xcoord,ycoord,zcoord);		
-			if( ( !strcmp(type,"ATOM") ) && chain == ChainQ )
+			if( ( !strcmp(name,"CA") ) && old_count_aux != count_aux)
 			{
-				if( ( !strcmp(name,"CA") ) && old_count_aux != count_aux)
-				{
-					old_count_aux = count_aux;	/* This is a new residue! YAY! */
-					count++;                 	/* Increase the CA counter for the chain... */	
+				old_count_aux = count_aux;	/* This is a new residue! YAY! */
+				count++;                 	/* Increase the CA counter for the chain... */	
 				
-				    	if(count >= start_res && count < start_res+length)
-					{
-						if ((Atmrec.frag[u]->res[a] = (RESIDUE *) calloc(1,sizeof(RESIDUE))) == NULL ) { fprintf(stderr,"Error in malloc\n");}
-				        	if ( (Atmrec.frag[u]->res[a]->atom[0]= (ATOM *) calloc(1,sizeof(ATOM))) == NULL ) { fprintf(stderr,"Error in malloc\n");}
-						(Atmrec.frag[u]->res[a])->atom[0]->x = xcoord;
-					        (Atmrec.frag[u]->res[a])->atom[0]->y = ycoord;
-						(Atmrec.frag[u]->res[a])->atom[0]->z = zcoord;
-						strcpy((Atmrec.frag[u]->res[a])->atom[0]->atomname,name);
-						strcpy((Atmrec.frag[u]->res[a])->Resname,restype);
-						(Atmrec.frag[u]->res[a])->Resno = count;
-						Atmrec.frag[u]->res[a]->numatom=1;
-						natom++;
-						a++;	
-				     }
-				     
- 				}     	
-			}	
-			if(a>=length)
-				break;
-	 	}/*while*/
-	}
+			    	if(count >= start_res && count < start_res+length)
+				{
+					if ((Atmrec.frag[u]->res[a] = (RESIDUE *) calloc(1,sizeof(RESIDUE))) == NULL ) { fprintf(stderr,"Error in malloc\n");}
+			        	if ( (Atmrec.frag[u]->res[a]->atom[0]= (ATOM *) calloc(1,sizeof(ATOM))) == NULL ) { fprintf(stderr,"Error in malloc\n");}
+					(Atmrec.frag[u]->res[a])->atom[0]->x = xcoord;
+				        (Atmrec.frag[u]->res[a])->atom[0]->y = ycoord;
+					(Atmrec.frag[u]->res[a])->atom[0]->z = zcoord;
+					strcpy((Atmrec.frag[u]->res[a])->atom[0]->atomname,name);
+					strcpy((Atmrec.frag[u]->res[a])->Resname,restype);
+					(Atmrec.frag[u]->res[a])->Resno = count;
+					Atmrec.frag[u]->res[a]->numatom=1;
+					natom++;
+					a++;	
+			     }
+			     
+ 			}     	
+		}
+		if(a>=length)
+			break;
+ 	}/*while*/
+
 	fclose(IN);
 	Atmrec.frag[u]->numres = a;
 	//printf("%d Atmrec.frag[u] numres \n",Atmrec.frag[u]->numres);
