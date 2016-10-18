@@ -7,17 +7,17 @@ export HHSUITE=/home/U055415/hh-suite/bin/
 export HHBLITSDB=$HHSUITE/../db/pdb70
 export BLAST=/usr/bin/
 export BLAST_PDB=/home/U055415/Databases/pdbaa
-export FLIB=/work/data/home/u055415/Flib/
-export PDB=/work/data/home/u055415/PDB/
+export FLIB=/home/U055415/Flib/
+export PDB=/run/media/U055415/DATADRIVE0/PDB/
 
 # READ ARGUMENTS:
 OUTPUT=$1
 
 # ADJUST THE FILES THAT WILL BE GENERATED/COMPUTED:
-generate_ss=false		# Change value to "true" if running local version of PSIPRED.
-generate_spider2=false		# Change value to "true" if running local version of SPINE-X.
-generate_hhr=false		# Change value to "true" if running local version of HHBlits.	
-generate_flib=false		# Change value to "true" if running local version of Flib. 
+generate_ss=true		# Change value to "true" if running local version of PSIPRED.
+generate_spider2=true		# Change value to "true" if running local version of SPINE-X.
+generate_hhr=true		# Change value to "true" if running local version of HHBlits.	
+generate_flib=true		# Change value to "true" if running local version of Flib. 
 parse_flib=true 		# Change value to "true" if parsing Flib libraries to SAINT2 format. 
 remove_homologs=true		# Change value to "true" if removing homologs from frag. libraries.
 
@@ -53,7 +53,7 @@ fi
 if [ "$remove_homologs" = true ] ; then
        # Generate list of homologs
        blastp -query ./$OUTPUT.fasta.txt -db $BLAST_PDB -evalue 0.05 -outfmt 6  > $OUTPUT.blast
-       awk '{print substr($2,5,4)}' $OUTPUT.blast | sort | uniq | tr '[:upper:]' '[:lower:]' > $OUTPUT.homol 
+       awk '{print $2}' $OUTPUT.blast | sed -e "s/.*pdb|//g" | cut -c 1-4 | sort | uniq | tr '[:upper:]' '[:lower:]' > $OUTPUT.homol
 fi
 
 ##### FLIB #####
