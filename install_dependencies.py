@@ -64,8 +64,8 @@ if sys.platform == "win32":
 # Show some command line options
 # ===============================================================================
 
-__PROGS = ['blast', 'hhsuite', 'psipred']
-__DBS = ['blast', 'hhblits', 'pdb']
+__PROGS = ['blast', 'hhsuite', 'psipred', 'None']
+__DBS = ['blast', 'hhblits', 'pdb', 'None']
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('-b', '--blast_db', type=str, default='uniref90',
@@ -81,7 +81,6 @@ parser.add_argument('-p', '--progs', choices=__PROGS, default=__PROGS, nargs='+'
 parser.add_argument('-d', '--databs', choices=__DBS, default=__DBS, nargs='+', help='databases to install [default = all]')
 args = parser.parse_args()
 
-
 # ===============================================================================
 # Variable setting and processing of some options
 # ===============================================================================
@@ -92,8 +91,8 @@ _DEPENDENCY_DIR = os.path.abspath(args.install_dir)
 _DATABASE_DIR = os.path.join(_DEPENDENCY_DIR, 'databases')
 _FLIB_DIR = os.path.abspath(args.flib_dir)
 _OVERWRITE = True if args.overwrite else False
-_PROGS_TO_INSTALL = args.progs
-_DBS_TO_INSTALL = args.databs
+_PROGS_TO_INSTALL = [p.strip() for p in args.progs]
+_DBS_TO_INSTALL = [db.strip() for db in args.databs]
 
 # Make the installation directory if it doesn't exist
 if not os.path.isdir(_DEPENDENCY_DIR): os.mkdir(_DEPENDENCY_DIR)
@@ -153,7 +152,7 @@ pdb_dir = os.path.join(_DATABASE_DIR, "pdb")
 log_fname = tempfile.NamedTemporaryFile(delete=False).name
 install_fname = os.path.join(pdb_dir, "install.ok")
 
-if 'pdb' in _DBS_TO_INSTALL and do_install(pdb_dir, check_file=install_fname):
+if 'pdb' in _DBS_TO_INSTALL and do_install(pdb_dir, check_file=install_fname, overwrite=_OVERWRITE):
     logging.info("Creating a copy of the RCSB Protein Data Bank")
 
     if os.path.isdir(pdb_dir): shutil.rmtree(pdb_dir)
@@ -196,7 +195,7 @@ _hhblits_db_dir = os.path.join(_DATABASE_DIR, "hhsuitedb", _HHBLITS_DB_NAME)
 install_fname = os.path.join(_hhblits_db_dir, "install.ok")
 hhblits_db = os.path.join(_hhblits_db_dir, _HHBLITS_DB_NAME)
 
-if 'hhblits' in _DBS_TO_INSTALL and do_install(_hhblits_db_dir, check_file=install_fname):
+if 'hhblits' in _DBS_TO_INSTALL and do_install(_hhblits_db_dir, check_file=install_fname, overwrite=_OVERWRITE):
     logging.info("Downloading the HHblits {0} database - please be very patient".format(_HHBLITS_DB_NAME))
 
     if os.path.isdir(_hhblits_db_dir): shutil.rmtree(_hhblits_db_dir)
@@ -221,42 +220,9 @@ else:
     print_skipping('HHblits database')
     hhblits_db = ""
 
-# ===============================================================================
-# Download and extract the BLAST database
-# ===============================================================================
+if _HHBLITS_DB_NAME.startswith("pdb70"):
+    hhblits_db = _hhblits_db_dir.rsplit('_', 1)[0]
 
-_blast_db_dir = os.path.join(_DATABASE_DIR, "blastdb", _BLAST_DB_NAME)
-install_fname = os.path.join(_blast_db_dir, "install.ok")
-blast_db = os.path.join(_blast_db_dir, _BLAST_DB_NAME)
-
-if 'blast' in _DBS_TO_INSTALL and do_install(_blast_db_dir, check_file=install_fname):
-    logging.info("Downloading the Blast {0} database - please be very patient".format(_BLAST_DB_NAME))
-        
-    if os.path.isdir(_blast_db_dir): shutil.rmtree(_blast_db_dir)
-
-    os.mkdir(_blast_db_dir)
-    os.chdir(_blast_db_dir)
-    gunball = wget.download("ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/{0}/{0}.fasta.gz".format(_BLAST_DB_NAME))
-    
-    with gzip.open(gunball, "rb") as f_in, open(blast_db, "wb") as f_out: shutil.copyfileobj(f_in, f_out)
-    logging.info("Formatting the Blast {0} database - please be very very patient".format(_BLAST_DB_NAME))
-    os.system('../bin/formatdb -o T -i {0}'.format(_BLAST_DB_NAME))
-    if os.path.isfile(gunball) and os.path.isfile(_BLAST_DB_NAME): os.remove(gunball)
-    os.chdir(_DEPENDENCY_DIR)
-        
-    with open(install_fname, 'w'): os.utime(install_fname, None)
-    logging.info("Download of Blast {0} database completed".format(_BLAST_DB_NAME))
-
-elif 'blast' in _DBS_TO_INSTALL:
-    print_overwrite('BLAST database')
- 
-elif is_installed(_blast_db_dir, install_fname):
-    pass
-
-else:
-    print_skipping('BLAST database')
-    blast_db = ""
-    
 # ===============================================================================
 # Download and install the BLAST
 # ===============================================================================
@@ -264,7 +230,7 @@ else:
 blast_dir = os.path.join(_DEPENDENCY_DIR, "blast")
 install_fname = os.path.join(blast_dir, "install.ok")
 
-if 'blast' in _PROGS_TO_INSTALL and do_install(blast_dir, check_file=install_fname):
+if 'blast' in _PROGS_TO_INSTALL and do_install(blast_dir, check_file=install_fname, overwrite=_OVERWRITE):
     logging.info("Installing Blast legacy build") 
     
     if os.path.isdir(blast_dir): shutil.rmtree(blast_dir)
@@ -290,13 +256,49 @@ else:
     blast_dir = ""
 
 # ===============================================================================
+# Download and extract the BLAST database
+# ===============================================================================
+
+_blast_db_dir = os.path.join(_DATABASE_DIR, "blastdb", _BLAST_DB_NAME)
+install_fname = os.path.join(_blast_db_dir, "install.ok")
+blast_db = os.path.join(_blast_db_dir, _BLAST_DB_NAME)
+
+if 'blast' in _DBS_TO_INSTALL and do_install(_blast_db_dir, check_file=install_fname, overwrite=_OVERWRITE):
+    logging.info("Downloading the Blast {0} database - please be very patient".format(_BLAST_DB_NAME))
+        
+    if os.path.isdir(_blast_db_dir): shutil.rmtree(_blast_db_dir)
+
+    os.mkdir(_blast_db_dir)
+    os.chdir(_blast_db_dir)
+    gunball = wget.download("ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/{0}/{0}.fasta.gz".format(_BLAST_DB_NAME))
+    
+    with gzip.open(gunball, "rb") as f_in, open(blast_db, "wb") as f_out: shutil.copyfileobj(f_in, f_out)
+    logging.info("Formatting the Blast {0} database - please be very very patient".format(_BLAST_DB_NAME))
+    os.system('{blast_dir}/bin/formatdb -o T -i {blast_db}'.format(blast_dir=blast_dir, blast_db=_BLAST_DB_NAME))
+    if os.path.isfile(gunball) and os.path.isfile(_BLAST_DB_NAME): os.remove(gunball)
+    os.chdir(_DEPENDENCY_DIR)
+        
+    with open(install_fname, 'w'): os.utime(install_fname, None)
+    logging.info("Download of Blast {0} database completed".format(_BLAST_DB_NAME))
+
+elif 'blast' in _DBS_TO_INSTALL:
+    print_overwrite('BLAST database')
+ 
+elif is_installed(_blast_db_dir, install_fname):
+    pass
+
+else:
+    print_skipping('BLAST database')
+    blast_db = ""
+    
+# ===============================================================================
 # Download and install PSIPRED
 # ===============================================================================
 
 psipred_dir = os.path.join(_DEPENDENCY_DIR, "psipred")
 install_fname = os.path.join(psipred_dir, "install.ok")
 
-if 'psipred' in _PROGS_TO_INSTALL and do_install(psipred_dir, check_file=install_fname):
+if 'psipred' in _PROGS_TO_INSTALL and do_install(psipred_dir, check_file=install_fname, overwrite=_OVERWRITE):
     logging.info("Installing PSIPRED") 
 
     if os.path.isdir(psipred_dir): shutil.rmtree(psipred_dir)
@@ -352,7 +354,7 @@ hhsuite_tmp = os.path.join(_DEPENDENCY_DIR, "_hhsuite")
 hhsuite_dir = os.path.join(_DEPENDENCY_DIR, "hhsuite")
 install_fname = os.path.join(hhsuite_dir, "install.ok")
 
-if 'hhsuite' in _PROGS_TO_INSTALL and do_install(hhsuite_dir, check_file=install_fname):
+if 'hhsuite' in _PROGS_TO_INSTALL and do_install(hhsuite_dir, check_file=install_fname, overwrite=_OVERWRITE):
     logging.info("Installing HHsuite") 
     
     if os.path.isdir(hhsuite_dir): shutil.rmtree(hhsuite_dir)
