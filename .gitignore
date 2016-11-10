@@ -7,6 +7,9 @@
 *.obj
 *.elf
 
+# Python compiled files
+*.pyc
+
 # Linker output
 *.ilk
 *.map
