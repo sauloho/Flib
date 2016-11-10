@@ -48,7 +48,7 @@ To generate a SAINT2-compliant library, the Python script ``scripts/process_new.
 
 3. CONFIGURATION
 ^^^^^^^^^^^^^^^^
-In order to configure Flib, alter the path names on the file ``scripts/runflibpipeline``.
+In order to configure Flib, alter the path names on the file ``bin/runflibpipeline``.
 
 Make sure to provide the correct paths to Flib and to the local version of the PDB.
 
