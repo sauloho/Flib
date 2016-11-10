@@ -10,16 +10,89 @@ export BLAST_PDB=/home/felix/opt/databases/blastdb/pdbaa/pdbaa
 export FLIB=/home/felix/develop/Flib
 export PDB=/home/felix/opt/databases/pdb
 
-# READ ARGUMENTS:
-OUTPUT=$1
+# ==========================================================================
+# DO NOT CHANGE ANYTHING BELOW HERE
+# ==========================================================================
 
-# ADJUST THE FILES THAT WILL BE GENERATED/COMPUTED:
-generate_ss=true		# Change value to "true" if running local version of PSIPRED.
-generate_spider2=true		# Change value to "true" if running local version of SPINE-X.
-generate_hhr=true		# Change value to "true" if running local version of HHBlits.	
-generate_flib=true		# Change value to "true" if running local version of Flib. 
-parse_flib=true 		# Change value to "true" if parsing Flib libraries to SAINT2 format. 
-remove_homologs=true		# Change value to "true" if removing homologs from frag. libraries.
+usage="\n$(basename "$0") [options] <NAME>\n\n
+Flib: A Fragment Library Generation Software\n\n
+Positional arguments:\n
+\t<NAME>\t\t\tprefix of the input files\n\n
+Optional arguments:\n
+\t-h | --help\t\tshow this help text\n
+\t--generate_ss\t\trun a local version of PSIPRED\n
+\t--generate_spider2\trun a local version of SPIDER2\n
+\t--generate_hhr\t\trun a local version of HHblits\n
+\t--generate_flib\t\trun a local version of Flib\n
+\t--parse_flib\t\tparse Flib libraries to SAINT2 format\n
+\t--nohoms\t\tremove homologs from fragment libraries\n\n"
+
+# DEFAULT VALUES FOR COMMAND LINE ARGUEMNTS
+generate_ss=false		# running local version of PSIPRED.
+generate_spider2=false		# running local version of SPINE-X.
+generate_hhr=false		# running local version of HHBlits.
+generate_flib=false		# running local version of Flib.
+parse_flib=false		# parsing Flib libraries to SAINT2 format.
+remove_homologs=false		# removing homologs from frag. libraries.
+
+# CONSUME COMMAND LINE ARGUMENTS
+found_positional=false
+while [[ $# -gt 0 ]];
+do
+    key="$1"
+
+    # Check all flags -- basic method but assume positional arguments are no more than one
+    if [[ "$key" == -* ]];
+    then
+        case $key in
+            -h|--help)
+                echo -e $usage
+                exit
+                ;;
+            --generate_ss)
+                generate_ss=true
+                ;;
+            --generate_spider2)
+                generate_spider2=true
+                ;;
+            --generate_hhr)
+                generate_hhr=true
+                ;;
+            --generate_flib)
+                generate_flib=true
+                ;;
+            --parse_flib)
+                parse_flib=true
+                ;;
+            --nohoms)
+                remove_homologs=true
+                ;;
+            -*|--*)
+                echo "Unknown option" $key
+                exit
+                ;;
+        esac
+    elif [[ $found_positional = true ]];
+    then
+        echo "Too many positional arguments"
+        exit
+    else
+        OUTPUT=$key
+        found_positional=true
+    fi
+
+    shift
+done
+
+# CHECK THAT OUTPUT IS DEFINED
+if [[ -z $OUTPUT ]];
+then
+    echo -e $usage
+    exit
+fi
+
+echo $OUTPUT
+exit
 
 ##### GENERAL SET UP #####
 
