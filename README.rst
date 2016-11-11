@@ -13,7 +13,9 @@ and type:
 
 .. code:: bash
    
+   $> cd src
    $> make
+   $> make install
 
 This will generate the executable ``bin/Flib``.
 
@@ -48,21 +50,21 @@ To generate a SAINT2-compliant library, the Python script ``scripts/process_new.
 
 3. CONFIGURATION
 ^^^^^^^^^^^^^^^^
-In order to configure Flib, alter the path names on the file ``bin/runflibpipeline``.
+In order to configure Flib, alter the path names on the file ``runflibpipeline``.
 
 Make sure to provide the correct paths to Flib and to the local version of the PDB.
 
 If using any local versions of the software described in the previous section,
 make sure to alter the respective flags to ``true`` as instructed by the comments 
-on the script ``bin/runflibpipeline``.
+on the script ``runflibpipeline``.
 
 4. RUNNING FLIB
 ^^^^^^^^^^^^^^^
-To generate fragment libraries using Flib, you should use the script ``bin/runflibpipeline`` as follows:
+To generate fragment libraries using Flib, you should use the script ``runflibpipeline`` as follows:
 
 .. code:: bash
    
-   $> bin/runflibpipeline 1AIU
+   $> runflibpipeline 1AIU
 
 The following example should generate the fragment library file "1AIU.lib".
 
