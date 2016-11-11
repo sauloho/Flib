@@ -20,7 +20,7 @@
 
 It will also download the following databases:
     * HHblits (LATEST) [~39 Gb]
-    * Blast (uniref90) [~19 Gb]
+    * Blast (pdbaa)
     * Protein Data Bank (LATEST) [~94 Gb]
 
 This script was written by Felix Simkovic, 2016.
@@ -32,7 +32,7 @@ ANY USE OF THIS SCRIPT IS ENTIRELY AT YOUR OWN RISK
 
 __author__ = "Felix Simkovic"
 __date__ = "08 Aug 2016"
-__version__ = 1.0
+__version__ = 0.2
 
 import argparse
 import glob
@@ -68,9 +68,9 @@ __PROGS = ['blast', 'hhsuite', 'psipred']
 __DBS = ['blast', 'hhblits', 'pdb']
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('-b', '--blast_db', type=str, default='uniref90',
-                    choices=['uniref50', 'uniref90', 'uniref100'], 
-                    help='Blast database [default: uniref90]')
+parser.add_argument('-b', '--blast_db', type=str, default='pdbaa',
+                    choices=['pdbaa'], 
+                    help='Blast database [default: pdbaa]')
 parser.add_argument('-t', '--hhblits_db', type=str, default='pdb70_04Aug16', 
                     choices=['pdb70_04Aug16', 'pfamA_29.0', 'uniprot20_2016_02'], 
                     help='HHblits database [default: pdb70_04Aug16]')
@@ -96,7 +96,7 @@ _PROGS_TO_INSTALL = args.progs
 _DBS_TO_INSTALL = args.databs
 
 # Make the installation directory if it doesn't exist
-if not os.path.isdir(_DEPENDENCY_DIR): os.mkdir(_DEPENDENCY_DIR)
+if not os.path.isdir(_DEPENDENCY_DIR): os.makedirs(_DEPENDENCY_DIR)
 
 logging.info("""Installation options:
 
@@ -114,9 +114,9 @@ logging.info("""Installation options:
 
 # Some folder processing
 if not os.path.isdir(_DATABASE_DIR):
-    os.mkdir(_DATABASE_DIR)
+    os.makedirs(_DATABASE_DIR)
 if not os.path.isdir(_DEPENDENCY_DIR):
-    os.mkdir(_DEPENDENCY_DIR)
+    os.makedirs(_DEPENDENCY_DIR)
 
 # ===============================================================================
 # Some functions to make the installation process easier
@@ -201,7 +201,7 @@ if 'hhblits' in _DBS_TO_INSTALL and do_install(_hhblits_db_dir, check_file=insta
 
     if os.path.isdir(_hhblits_db_dir): shutil.rmtree(_hhblits_db_dir)
 
-    os.mkdir(_hhblits_db_dir)
+    os.makedirs(_hhblits_db_dir)
     os.chdir(_hhblits_db_dir)
     tarball = wget.download("http://wwwuser.gwdg.de/~compbiol/data/hhsuite/databases/hhsuite_dbs/{0}.tgz".format(_HHBLITS_DB_NAME))
     with tarfile.open(tarball) as tar: tar.extractall()
@@ -230,20 +230,18 @@ install_fname = os.path.join(_blast_db_dir, "install.ok")
 blast_db = os.path.join(_blast_db_dir, _BLAST_DB_NAME)
 
 if 'blast' in _DBS_TO_INSTALL and do_install(_blast_db_dir, check_file=install_fname):
-    logging.info("Downloading the Blast {0} database - please be very patient".format(_BLAST_DB_NAME))
+    logging.info("Downloading the Blast {0} database".format(_BLAST_DB_NAME))
         
-    if os.path.isdir(_blast_db_dir): shutil.rmtree(_blast_db_dir)
+    if os.path.isdir(_blast_db_dir): 
+        shutil.rmtree(_blast_db_dir)
 
-    os.mkdir(_blast_db_dir)
+    os.makedirs(_blast_db_dir)
     os.chdir(_blast_db_dir)
-    gunball = wget.download("ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/{0}/{0}.fasta.gz".format(_BLAST_DB_NAME))
-    
-    with gzip.open(gunball, "rb") as f_in, open(blast_db, "wb") as f_out: shutil.copyfileobj(f_in, f_out)
-    logging.info("Formatting the Blast {0} database - please be very very patient".format(_BLAST_DB_NAME))
-    os.system('../bin/formatdb -o T -i {0}'.format(_BLAST_DB_NAME))
-    if os.path.isfile(gunball) and os.path.isfile(_BLAST_DB_NAME): os.remove(gunball)
+    tarball = wget.download("ftp://ftp.ncbi.nlm.nih.gov/blast/db/pdbaa.tar.gz".format(_BLAST_DB_NAME))
+    with tarfile.open(tarball) as tar: tar.extractall()
+    if os.path.isfile(tarball): os.remove(tarball)
     os.chdir(_DEPENDENCY_DIR)
-        
+
     with open(install_fname, 'w'): os.utime(install_fname, None)
     logging.info("Download of Blast {0} database completed".format(_BLAST_DB_NAME))
 
@@ -270,10 +268,11 @@ if 'blast' in _PROGS_TO_INSTALL and do_install(blast_dir, check_file=install_fna
     if os.path.isdir(blast_dir): shutil.rmtree(blast_dir)
 
     if sys.platform == "linux" or sys.platform == "linux2":
-        tarball = wget.download("ftp://ftp.ncbi.nlm.nih.gov/blast/executables/legacy/LATEST/blast-2.2.26-x64-linux.tar.gz")
+        tarball = wget.download("ftp://ftp.ncbi.nlm.nih.gov/blast/executables/legacy/2.2.26/blast-2.2.26-x64-linux.tar.gz")
     elif sys.platform == "darwin":
-        tarball = wget.download("ftp://ftp.ncbi.nlm.nih.gov/blast/executables/legacy/LATEST/blast-2.2.26-universal-macosx.tar.gz")
+        tarball = wget.download("ftp://ftp.ncbi.nlm.nih.gov/blast/executables/legacy/2.2.26/blast-2.2.26-universal-macosx.tar.gz")
     with tarfile.open(tarball) as tar: tar.extractall()
+    if os.path.isfile(tarball): os.remove(tarball)
     shutil.move("blast-2.2.26", blast_dir)
     
     with open(install_fname, 'w'): os.utime(install_fname, None)
@@ -301,9 +300,10 @@ if 'psipred' in _PROGS_TO_INSTALL and do_install(psipred_dir, check_file=install
 
     if os.path.isdir(psipred_dir): shutil.rmtree(psipred_dir)
 
-    tarball = wget.download("http://bioinfadmin.cs.ucl.ac.uk/downloads/psipred/psipred.4.0.tar.gz")
-    with tarfile.open(tarball) as t_in:
-        t_in.extractall(psipred_dir)
+    # tarball = wget.download("http://bioinfadmin.cs.ucl.ac.uk/downloads/psipred/psipred.4.0.tar.gz")
+    tarball = wget.download("https://github.com/psipred/psipred/archive/v4.0.tar.gz")
+    with tarfile.open(tarball) as t_in: t_in.extractall(psipred_dir)
+    if os.path.isfile(tarball): os.remove(tarball)
     for f in glob.glob(os.path.join(psipred_dir, "*")):
         for _f in glob.glob(os.path.join(f, "*")):
             shutil.move(_f, psipred_dir)
@@ -364,7 +364,7 @@ if 'hhsuite' in _PROGS_TO_INSTALL and do_install(hhsuite_dir, check_file=install
     # Build HH-suite
     logging.info("Compiling HHsuite")
     _build_dir = os.path.join(hhsuite_tmp, "build")
-    os.mkdir(_build_dir)
+    os.makedirs(_build_dir)
     os.chdir(_build_dir)
     os.system("cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -G \"Unix Makefiles\" -DCMAKE_INSTALL_PREFIX={0} ..".format(hhsuite_dir))
     os.system("make")
@@ -389,10 +389,10 @@ else:
 # Modify the pipeline.sh script
 # ===============================================================================
 
-flib_script = os.path.join(_FLIB_DIR, "pipeline.sh")
+flib_script = os.path.join(_FLIB_DIR, "runflibpipeline")
 pipeline_lines = [line.strip("\n") for line in open(flib_script, "r").readlines()]
 
-logging.info("Adding dependency paths to the Flib \'pipeline.sh\' script")
+logging.info("Adding dependency paths to the Flib \'runflibpipeline\' script")
 with open(flib_script, "w") as f_out:
     for line in pipeline_lines:
 
@@ -401,9 +401,6 @@ with open(flib_script, "w") as f_out:
 
         elif line.startswith("export BLASTDB"):
             line = "export BLASTDB={0}".format(blast_db)
-
-        elif line.startswith("export spineXblast"):
-            line = "export spineXblast={0}".format(blast_db)
 
         elif line.startswith("export HHSUITE"):
             line = "export HHSUITE={0}".format(hhsuite_dir) 
