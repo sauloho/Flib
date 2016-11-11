@@ -14,25 +14,25 @@ export PDB=/home/felix/opt/databases/pdb
 # DO NOT CHANGE ANYTHING BELOW HERE
 # ==========================================================================
 
-usage="\n$(basename "$0") [options] <NAME>\n\n
+usage="\n./$(basename "$0") [options] <NAME>\n\n
 Flib: A Fragment Library Generation Software\n\n
 Positional arguments:\n
 \t<NAME>\t\t\tprefix of the input files\n\n
 Optional arguments:\n
 \t-h | --help\t\tshow this help text\n
-\t--generate_ss\t\trun a local version of PSIPRED\n
-\t--generate_spider2\trun a local version of SPIDER2\n
-\t--generate_hhr\t\trun a local version of HHblits\n
-\t--generate_flib\t\trun a local version of Flib\n
-\t--parse_flib\t\tparse Flib libraries to SAINT2 format\n
+\t--disable_ss\t\tdon't run a local version of PSIPRED\n
+\t--disable_spider2\tdon't run a local version of SPIDER2\n
+\t--disable_hhr\t\tdon't run a local version of HHblits\n
+\t--disable_flib\t\tdon't run a local version of Flib\n
+\t--noparsing\t\tdon't parse Flib libraries to SAINT2 format\n
 \t--nohoms\t\tremove homologs from fragment libraries\n\n"
 
 # DEFAULT VALUES FOR COMMAND LINE ARGUEMNTS
-generate_ss=false		# running local version of PSIPRED.
-generate_spider2=false		# running local version of SPINE-X.
-generate_hhr=false		# running local version of HHBlits.
-generate_flib=false		# running local version of Flib.
-parse_flib=false		# parsing Flib libraries to SAINT2 format.
+generate_ss=true		# running local version of PSIPRED.
+generate_spider2=true		# running local version of SPINE-X.
+generate_hhr=true		# running local version of HHBlits.
+generate_flib=true		# running local version of Flib.
+parse_flib=true	        	# parsing Flib libraries to SAINT2 format.
 remove_homologs=false		# removing homologs from frag. libraries.
 
 # CONSUME COMMAND LINE ARGUMENTS
@@ -49,20 +49,20 @@ do
                 echo -e $usage
                 exit
                 ;;
-            --generate_ss)
-                generate_ss=true
+            --disable_ss)
+                generate_ss=false
                 ;;
-            --generate_spider2)
-                generate_spider2=true
+            --disable_spider2)
+                generate_spider2=false
                 ;;
-            --generate_hhr)
-                generate_hhr=true
+            --disable_hhr)
+                generate_hhr=false
                 ;;
-            --generate_flib)
-                generate_flib=true
+            --disable_flib)
+                generate_flib=false
                 ;;
-            --parse_flib)
-                parse_flib=true
+            --noparsing)
+                parse_flib=false
                 ;;
             --nohoms)
                 remove_homologs=true
@@ -74,7 +74,7 @@ do
         esac
     elif [[ $found_positional = true ]];
     then
-        echo "Too many positional arguments"
+        echo "More than one positional argument provided"
         exit
     else
         OUTPUT=$key
@@ -91,6 +91,12 @@ then
     exit
 fi
 
+echo "ss" $generate_ss
+echo "hhr" $generate_hhr
+echo "spider2" $generate_spider2
+echo "flib" $generate_flib
+echo "parse" $parse_flib
+echo "nohoms" $remove_homologs
 echo $OUTPUT
 exit
 
