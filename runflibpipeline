@@ -91,15 +91,6 @@ then
     exit
 fi
 
-echo "ss" $generate_ss
-echo "hhr" $generate_hhr
-echo "spider2" $generate_spider2
-echo "flib" $generate_flib
-echo "parse" $parse_flib
-echo "nohoms" $remove_homologs
-echo $OUTPUT
-exit
-
 ##### GENERAL SET UP #####
 
 # Generate SS Prediction using PSIPRED
