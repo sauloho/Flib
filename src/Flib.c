@@ -153,7 +153,7 @@ int main(int argc,char* argv[])
 	input_ss = fopen(strcat(AUX,".fasta.ss"),"r");
 	if (input_ss == NULL) {printf("Predicted Secondary Structure file not found: %s\n", AUX); return 0;}
 
-	sprintf(PATH,"%s/include/parsedPDB_new.txt",getenv("FLIB"));
+	sprintf(PATH,"%s/data/parsedPDB_new.txt",getenv("FLIB"));
 	input_pdb = fopen(PATH,"r");
 	if (input_pdb == NULL) {printf("Protein database file is missing: parsedPDB_new.txt\n"); return 0;}
 
@@ -161,7 +161,7 @@ int main(int argc,char* argv[])
     	input_phipsi = fopen(strcat(AUX,".spd3"),"r");
 	if (input_phipsi == NULL) {printf("SPIDER2 input file (predicted torsion angles) not found!\n"); return 0;}
 
-	sprintf(PATH,"%s/include/blossum62.txt",getenv("FLIB"));
+	sprintf(PATH,"%s/data/blossum62.txt",getenv("FLIB"));
 	blossum_file = fopen(PATH,"r");
 	if (blossum_file == NULL) {printf("BLOSSUM file not found!\n"); return 0;}
 
@@ -208,7 +208,7 @@ int main(int argc,char* argv[])
 	/***** END OF READ BLOSSUM MATRIX FOR THE ALIGNMENT *****/
 	
 	/***** READ FREAD ENV. TABLES *****/
-	sprintf(AUX,"%s/include/logods0.txt",getenv("FLIB"));
+	sprintf(AUX,"%s/data/logods0.txt",getenv("FLIB"));
 	path_len = strlen(AUX);
 	for(;AUX[path_len-5]<48+7;AUX[path_len-5]++)
 	{	

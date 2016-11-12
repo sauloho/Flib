@@ -20,12 +20,12 @@ Positional arguments:\n
 \t<NAME>\t\t\tprefix of the input files\n\n
 Optional arguments:\n
 \t-h | --help\t\tshow this help text\n
-\t--generate_ss\t\tdon't run a local version of PSIPRED\n
-\t--generate_spider2\tdon't run a local version of SPIDER2\n
-\t--generate_hhr\t\tdon't run a local version of HHblits\n
-\t--disable_flib\t\tdon't run a local version of Flib\n
-\t--noparsing\t\tdon't parse Flib libraries to SAINT2 format\n
-\t--nohoms\t\tremove homologs from fragment libraries\n\n"
+\t-generate_ss\t\trun a local version of PSIPRED\n
+\t-generate_spider2\trun a local version of SPIDER2\n
+\t-generate_hhr\t\trun a local version of HHblits\n
+\t-disable_flib\t\tdon't run a local version of Flib\n
+\t-noparsing\t\tdon't parse Flib libraries to SAINT2 format\n
+\t-nohoms\t\tspecify to omit homologs from search\n\n"
 
 # DEFAULT VALUES FOR COMMAND LINE ARGUEMNTS
 generate_ss=false		# running local version of PSIPRED.
@@ -49,22 +49,22 @@ do
                 echo -e $usage
                 exit
                 ;;
-            --generate_ss)
+            -generate_ss)
                 generate_ss=true
                 ;;
-            --generate_spider2)
+            -generate_spider2)
                 generate_spider2=true
                 ;;
-            --generate_hhr)
+            -generate_hhr)
                 generate_hhr=true
                 ;;
-            --disable_flib)
+            -disable_flib)
                 generate_flib=false
                 ;;
-            --noparsing)
+            -noparsing)
                 parse_flib=false
                 ;;
-            --nohoms)
+            -nohoms)
                 remove_homologs=true
                 ;;
             -*|--*)
@@ -117,13 +117,16 @@ if [ "$generate_hhr" = true ] ; then
         echo "Generating HHSearch File:"
         $HHSUITE/hhblits -d $HHBLITSDB -i ./$OUTPUT.fasta.txt -o $OUTPUT.hhr
         echo "Done"
+	echo "--------------------------------------"
 fi
 
 # Generate list of Homologs 
 if [ "$remove_homologs" = true ] ; then
-       # Generate list of homologs
-       blastp -query ./$OUTPUT.fasta.txt -db $BLAST_PDB -evalue 0.05 -outfmt 6  > $OUTPUT.blast
-       awk '{print $2}' $OUTPUT.blast | sed -e "s/.*pdb|//g" | cut -c 1-4 | sort | uniq | tr '[:upper:]' '[:lower:]' > $OUTPUT.homol
+        echo "Generate list of homologs:"
+        blastp -query ./$OUTPUT.fasta.txt -db $BLAST_PDB -evalue 0.05 -outfmt 6  > $OUTPUT.blast
+        awk '{print $2}' $OUTPUT.blast | sed -e "s/.*pdb|//g" | cut -c 1-4 | sort | uniq | tr '[:upper:]' '[:lower:]' > $OUTPUT.homol
+	echo "Done"
+	echo "--------------------------------------"
 fi
 
 ##### FLIB #####

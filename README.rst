@@ -43,8 +43,10 @@ Local versions of the following software can be incorporated into Flib's pipelin
 
 1. PSIPRED
 2. HHSearch/HHBlits
-3. SPINE-X
+3. SPIDER-2
 4. BLAST
+
+The script ``scripts/install_dependencies.py`` can be used to install some of Flib's dependencies.
 
 To generate a SAINT2-compliant library, the Python script ``scripts/process_new.py`` should be executed. This script requires Python 2.6 or higher and the Biopython Module.
 
