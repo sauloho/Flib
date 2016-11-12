@@ -62,7 +62,8 @@ To generate fragment libraries using Flib, you should use the script ``runflibpi
 
 .. code:: bash
    
-   $> runflibpipeline 1AIU
+   $> export FLIB=<PATH TO FLIB>
+   $> $FLIB/runflibpipeline 1AIU
 
 The following example should generate the fragment library file "1AIU.lib".
 
