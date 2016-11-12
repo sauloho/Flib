@@ -1,5 +1,6 @@
 # Ignore executables
-bin/*
+bin/*           # exclude binaries
+!bin/.gitkeep   # keep bin folder
 
 # Prerequisites
 *.d
