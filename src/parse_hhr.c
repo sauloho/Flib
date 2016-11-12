@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
 
   	/*** FILE HANDLING: ***/
 	library = fopen(argv[1],"r");
-	sprintf(PATH,"%s/blossum62.txt",getenv("FLIB"));
+        sprintf(PATH,"%s/data/blossum62.txt",getenv("FLIB"));
 	blossum_file = fopen(PATH,"r");
 
 	/* READ THE ENV. MATRIX FOR THE ALIGNMENT */
