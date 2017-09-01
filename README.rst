@@ -58,7 +58,7 @@ Make sure to provide the correct paths to Flib and to the local version of the P
 
 4. RUNNING FLIB
 ^^^^^^^^^^^^^^^
-To generate fragment libraries using Flib, you should use the script ``runflibpipeline`` as follows:
+To generate fragment libraries for protein structure prediction using Flib, you should use the script ``runflibpipeline`` as follows:
 
 .. code:: bash
    
@@ -67,7 +67,19 @@ To generate fragment libraries using Flib, you should use the script ``runflibpi
 
 The following example should generate the fragment library file "1AIU.lib".
 
-5. TROUBLESHOOTING
+5. RUNNING FLIB AMPLE
+^^^^^^^^^^^^^^^^^^^^^
+
+To generate fragment libraries for molecular replacement using Flib, you should use the script ``run_flib_ample_pipeline`` as follows:
+
+.. code:: bash
+   $> export FLIB=<PATH TO FLIB>
+   $> export PDB=<PATH TO YOUR LOCAL INSTALLATION OF THE PDB>
+   $> $FLIB/run_flib_ample_pipeline 1AIU
+
+The following example should generate the fragment library file "1AIU.lib_reduced".
+
+6. TROUBLESHOOTING
 ^^^^^^^^^^^^^^^^^^
 Contact sauloho@gmail.com for any problems you may experience using Flib.
 

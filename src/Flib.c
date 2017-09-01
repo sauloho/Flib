@@ -5,10 +5,10 @@
 #include<time.h>
 #include<ctype.h>
 #include"slink.h"
+#include<getopt.h>
 
 #define RANDOM 1
 #define EXHAUSTIVE 1
-#define VALIDATE 0
 #define MaxFrag 10000
 #define TRUE 1
 #define FALSE 0
@@ -18,7 +18,7 @@
 #define GAP -100
 #define VERBOSE 1
 #define MAXLEN 10000
-#define MAX_FRAG 3000
+#define MAX_FIT_COORDS 200
 
 #define max(A,B) (((A)>(B))?(A):(B))
 #define min(A,B) (((A)<(B))?(A):(B))
@@ -27,6 +27,11 @@
 /* Collect the coordinates from the pdb file starting from the correct residue. */
 int coordcol( char bum[FILEL],int u, int length, int start_res,char ChainQ,char* Seq);
 int coordcol2( FRAGMENTS * Piece,char PDB[82],char Chain, char* Seq,int *start );
+int MAX_FRAG=3000;
+int COEVO=0;
+int COEVO_ONLY=0;
+int VALIDATE=0;
+int PRINT_DIST=0;
 
 /* Performs the fragment superposition, returns the RMSD */
 float super4(FRAGMENTS *One, FRAGMENTS *Two, int nres);
@@ -122,34 +127,152 @@ int main(int argc,char* argv[])
 	char Header[82];              /* Information extracted from the header on the Database */
 	char Query[82];
 	char Dict2[21]={'G','A','V','L','M','I','F','Y','W','S','T','C','P','N','Q','K','R','H','D','E','\0'};              /* A one-letter code residue dictionary. */	
-	char PATH[1000];
+	char PATH[1000],pdb_file[1000],Query_Chain=0;
 	int path_len;
 	float rmsd,aux;
 	float probability;
 	float Angles[MAXLEN][4];
 	double resolution;			  /* The resolution of the crystal structure on the DB.	   */	
 	double new_score,dist1,dist2;			  /* The predicted torsion angle score					   */	
-
+    int min_length = 6;
+    int max_length = 19;
 	CONF Fasta_Conf[MAXLEN];      /* The confidence in the predicted secondary structure   */
 	fragment *new_frag;
-	FILE *input_fasta,*input_ss,*input_pdb,*input_phipsi,*blossum_file,*logods;
+	FILE *input_fasta,*input_ss,*input_pdb,*input_phipsi,*blossum_file,*logods,*input_contact_file;
+    int con1, con2, num_con, ct, c1, c2,flag,found_cb;
+    double XORT[MAX_FIT_COORDS],YORT[MAX_FIT_COORDS],ZORT[MAX_FIT_COORDS];
+    int Contacts[MAXLEN][2];
+    int Flag[MAXLEN];
+    float dist;
+
 	srand (time(NULL));
 
-	if(argc != 2)
+    while (1)
+    {
+      static struct option long_options[] =
+      {
+          {"coevo_only",   no_argument, &COEVO_ONLY, 1},
+          {"min_length",   required_argument,       0, 'l'},
+          {"max_length",   required_argument,       0, 'L'},
+          {"max_frags",    required_argument,       0, 'M'},
+          {"help",         no_argument,             0, 'h'},
+          {"contact_file", required_argument,       0, 'C'},
+          {"validate",     required_argument,       0, 'v'},
+          {"chain",        required_argument,       0, 'N'},
+          {"print_dist",   no_argument, &PRINT_DIST, 1},
+          {"input_file",   required_argument,       0, 'i'},
+          {0, 0, 0, 0}
+        };
+      /* getopt_long stores the option index here. */
+      int option_index = 0;
+
+      c = getopt_long (argc, argv, "l:L:M:h:C:v:N:i:",
+                       long_options, &option_index);
+
+      /* Detect the end of the options. */
+      if (c == -1)
+        break;
+
+      switch (c)
+      {
+         case 0:
+              if (long_options[option_index].flag != 0)
+                break;
+//            printf ("option %s", long_options[option_index].name);
+//              if (optarg)
+//                printf (" with arg %s", optarg);
+//              printf ("\n");
+//              break;
+
+        case 'l':
+//          printf ("Minimum fragment length set to `%d'\n", atoi(optarg));
+          min_length = atoi(optarg);
+          break;
+
+        case 'L':
+//          printf ("Maximum fragment length set to `%d'\n", atoi(optarg));
+          max_length = atoi(optarg);
+          break;
+
+        case 'M':
+//          printf ("Maximum number of fragments considered set to `%d'\n", atoi(optarg));
+          MAX_FRAG = atoi(optarg);
+          break;
+
+        case 'C':
+//          printf ("Predicted contact file set to `%s'\n", optarg);
+          input_contact_file = fopen(optarg,"r");
+          if (input_contact_file == NULL) {printf("Predicted contact file not found: %s\n", optarg); return 0;} 
+          COEVO=1;
+          break;
+
+        case 'v':
+//          printf ("PDB file for validation set to `%s'\n", optarg);
+          strcpy(pdb_file,optarg);
+          VALIDATE=1;
+          break;
+
+        case 'N':
+            Query_Chain=optarg[0];
+            break;
+
+        case 'i':
+          strcpy(Query,optarg);
+          break;
+
+        case 'h':
+            printf("\n\nUSAGE: %s [-options] -i PDB_ID\n\n",argv[0]);
+            printf("\t-M, --max_frags int_value [3000] --- The number of candidate fragments considered.\n");
+            printf("\t-l, --min_length int_value [6]  --- The minimum fragment length\n");
+            printf("\t-L, --max_length int_value [19] --- The maximum fragment length\n");
+            printf("\t-C, --contact_file filename --- A predicted contact file in three-column format (res1,res2,score). \n");
+            printf("\t-v, --validation filename --- A PDB file for your target if benchmarking/validating fragments. \n");
+            printf("\t-N, --chain char [A] --- If validating fragments, the protein chain of your target. \n");
+            printf("\t--print-dist --- If using co-evolution fragments, output the distance between the residues predicted to be in contact.\n");
+            printf("\t--coevo_only --- Only output fragments that satisfy predicted contacts \n"); 
+            printf("\n\nDESCRIPTION:\n\n\tFlib Co-evo v1.0\n\n");
+            break;
+
+        default:
+            abort ();
+      }
+    }
+
+	if(strlen(Query)<1)
 	{
-		printf("Usage: %s PDB_CODE\n",argv[0]);
+        printf("\n\nUSAGE: %s [-options] -i PDB_ID\n\nUse '-help' to print a detailed description of command line options\n\n",argv[0]);
 		return 0;
 	}
 
-	strcpy(Query,argv[1]);
+    if(VALIDATE && !Query_Chain)
+    {
+        printf("[WARNING] No chain provided for fragment validation. Using chain A as default. \n\t  Please, make sure that this is correct.\n");
+        Query_Chain='A';    
+    }
 
+    if(!VALIDATE && Query_Chain)
+    {
+        printf("[WARNING] Chain was provided, but fragments are not being validated. Chain argument will be ignored.\n");
+    }
+
+    if(getenv("FLIB")==NULL) 
+    {
+        printf("[ERROR] Please, set the environment variable FLIB to point to the directory where Flib was installed. e.g.\n\nsh: export FLIB=/path/to/Flib/\n\n");
+        return 0;
+    }
+
+    if(getenv("PDB")==NULL)
+    {
+        printf("[ERROR] Please, set the environment variable PDB to point to your local copy of the PDB. e.g.\n\nsh: export PDB=/path/to/PDB/\n\n");
+        return 0;
+    }
 
   	/*****      FILE HANDLING   *****/
-	strcpy(AUX,argv[1]);
+	strcpy(AUX,Query);
 	input_fasta = fopen(strcat(AUX,".fasta.txt"),"r");
 	if (input_fasta == NULL) {printf("Fasta file not found: %s\n", AUX); return 0;}	
 	
-	strcpy(AUX,argv[1]);
+	strcpy(AUX,Query);
 	input_ss = fopen(strcat(AUX,".fasta.ss"),"r");
 	if (input_ss == NULL) {printf("Predicted Secondary Structure file not found: %s\n", AUX); return 0;}
 
@@ -157,7 +280,7 @@ int main(int argc,char* argv[])
 	input_pdb = fopen(PATH,"r");
 	if (input_pdb == NULL) {printf("Protein database file is missing: parsedPDB_new.txt\n"); return 0;}
 
-	strcpy(AUX,argv[1]);
+	strcpy(AUX,Query);
     	input_phipsi = fopen(strcat(AUX,".spd3"),"r");
 	if (input_phipsi == NULL) {printf("SPIDER2 input file (predicted torsion angles) not found!\n"); return 0;}
 
@@ -189,6 +312,8 @@ int main(int argc,char* argv[])
 
 	/***** READ QUERY'S PREDICTED TORSION ANGLES *****/
 	
+
+
 	/* Remove Header from SPIDER2 output file */
 	for(c=fgetc(input_phipsi);c!='\n';c=fgetc(input_phipsi));
 
@@ -221,7 +346,14 @@ int main(int argc,char* argv[])
 		fclose(logods);
 	}
 	/***** END OF READ FREAD ENV. TABLES *****/
-	
+
+    /***** IF PROVIDED, READ CONTACT FILE *****/
+    if(COEVO)
+    {
+        for(i=0; fscanf(input_contact_file,"%d %d %lf",&Contacts[i][0],&Contacts[i][1],&aux)!=EOF; i++);
+        num_con=i;
+    }
+
 	/***** INITIALIZE THE FRAGMENT LIBRARY LINKED LIST *****/
 	Total=malloc(sizeof(int)*m);
 	Total_rnd=malloc(sizeof(int)*m);
@@ -279,12 +411,12 @@ int main(int argc,char* argv[])
 
 		/***** RANDOM EXTRACTION *****/
 		#if RANDOM
-		for(j=probability;j >= 0 && n >= 15; j--)
+		for(j=probability;j >= 0 && n > max_length; j--)
 		{	
 			if(!j && (float)(rand()%10000)/10000.0 > probability-(int)probability)
 		    		continue;
 
-			length = rand() % 7 + 6; /* Randomize fragment length between 6 and 12 residues */
+			length = rand() % (max_length - min_length + 1) + min_length; /* Randomize fragment length between min_length and max_length residues */
 			start1  = rand() % (m-length + 1); /* Randomize fragment starting position in query between 0 and (length of protein - length of fragment) */
 			start2  = rand() % (n-length + 1); /* Randomize fragment starting position in pdb structure between 0 and (length of protein - length of fragment) */
 			loop=0; helix=0; beta=0; ss_score=0; seq_score=0; ramach_score=0;
@@ -434,8 +566,8 @@ int main(int argc,char* argv[])
 			{
 
 				/* If this fragment has a better score than the worst fragment we extracted so far 
-				   for that position and if the lenght of the fragment is greater than 5, we extract it!     */
-				if(A_len[i][j] > 5)
+				   for that position and if the length of the fragment is greater than min_length, we extract it!     */
+				if(A_len[i][j] >= min_length && A_len[i][j] <= max_length)
 				{
 					start1 = i - A_len[i][j];
 					start2 = j - A_len[i][j];
@@ -445,7 +577,7 @@ int main(int argc,char* argv[])
 
 				if( start1 < 0 || start1 >= m || start2 < 0 || start2 >=n ) continue;				
 							
-				if( (Total[start1] < MAX_FRAG || A_ramach[i][j] > Worst[start1] )  && A_len[i][j] > 5 && A_SS[i][j] >= 0 && A_len[i][j] < 20)
+				if( (Total[start1] < MAX_FRAG || A_ramach[i][j] > Worst[start1] )  && A_len[i][j] >= min_length && A_SS[i][j] >= 0 && A_len[i][j] <= max_length)
 				{	
 					loop=0; helix=0; beta=0;
 					/* Find predominant SS on the fragment */
@@ -529,18 +661,18 @@ int main(int argc,char* argv[])
 	}
 
 
-
 	/*** FRAGMENT VALIDATION ****/
 	if ( (Atmrec.frag[0]= (FRAGMENTS *) calloc(1,sizeof(FRAGMENTS))) == NULL ) { printf("Error in malloc\n");}
 	if ( (Atmrec.frag[1]= (FRAGMENTS *) calloc(1,sizeof(FRAGMENTS))) == NULL ) { printf("Error in malloc\n");}
 
-	for(i=0;i<m-5;i++)
+	for(i=0;i<m-(min_length-1);i++)
 	{
 		#if EXHAUSTIVE
 		for(j=Worst[i];j<100;j++)
 		{	
 			for(new_frag= Frag_lib[i][j];new_frag!=NULL;new_frag=new_frag->next)
 			{
+
 				top=0;
 				sscanf(new_frag->line,"%s\t%c\t%d\t%d\t%s\t%c\t%d\t%d\t%d\t%d\t%lf\t%d",Header,&Chain,&start1,&k,DB_Seq,&c,&ramach_score,&seq_score,&length,&start2,&resolution,&ss_score);
 				//printf("%d\n",length);
@@ -549,16 +681,17 @@ int main(int argc,char* argv[])
 				Atmrec.frag[1]->start_res	= start2;
 				sprintf(Atmrec.frag[0]->fname,"%s/%c%c%c%c.pdb",getenv("PDB"),tolower(Header[0]),tolower(Header[1]),tolower(Header[2]),tolower(Header[3]));
 				top = coordcol(Atmrec.frag[top]->fname,top,length,Atmrec.frag[top]->start_res,Chain,DB_Seq);
-				
+
 				if(VALIDATE)
 				{
-					sprintf(Atmrec.frag[1]->fname,"./%s.pdb",argv[1]);
-					top = coordcol(Atmrec.frag[top]->fname,top,length,Atmrec.frag[top]->start_res,'A',NULL);
+					sprintf(Atmrec.frag[1]->fname,"./%s",pdb_file);
+					top = coordcol(Atmrec.frag[top]->fname,top,length,Atmrec.frag[top]->start_res,Query_Chain,NULL);
 				}
 				if(top<1+VALIDATE) /* If, by any reason, was not capable of finding the second fragment! */
 					fprintf(stderr,"Could not open the fragment starting at position %d for %s_%c.\n",start1,Header,Chain);
 				else
 				{
+                    /* If validating, calculate the RMSD between fragment and target */
 					if(VALIDATE)
 					{
 						if( Atmrec.frag[0]->natom == Atmrec.frag[1]->natom  &&  Atmrec.frag[1]->natom > 0  &&  Atmrec.frag[0]->natom > 0 && Atmrec.frag[0]->numres > 0 && Atmrec.frag[1]->numres > 0 && Atmrec.frag[0]->numres == Atmrec.frag[1]->numres )
@@ -573,6 +706,55 @@ int main(int argc,char* argv[])
 					if( coordcol2(all,Header,Chain,DB_Seq,&start_res) ) 
 						continue;
 
+                    /* If contacts were provided, check if any contacts occur within the fragment. */
+                    if(COEVO)
+                    {
+                        flag=0;
+                        for(ct=0;ct<num_con;ct++)
+                        {
+                            con1=Contacts[ct][0]-1-start2;
+                            con2=Contacts[ct][1]-1-start2;
+                            if(con1<0 || con1 >= length || con2<0 || con2 >= length)
+                                continue;
+
+                            flag=1;
+                            /* If it got here, it means that a contact exists within the fragment */
+                            for(c1=0;c1<length;c1++)
+                            {
+                                found_cb=0;
+                                for(c2=0;c2<Atmrec.frag[0]->res[c1]->numatom;c2++)
+                                {
+                                    if(!strcmp(Atmrec.frag[0]->res[c1]->atom[c2]->atomname,"CB"))
+                                    {
+                                        XORT[c1] = Atmrec.frag[0]->res[c1]->atom[c2]->x;
+                                        YORT[c1] = Atmrec.frag[0]->res[c1]->atom[c2]->y;
+                                        ZORT[c1] = Atmrec.frag[0]->res[c1]->atom[c2]->z;
+                                        found_cb=1;
+                                        break;
+                                    }
+                                }
+                                if(!found_cb)
+                                {
+                                   for(c2=0;c2<Atmrec.frag[0]->res[c1]->numatom;c2++)
+                                   {
+                                       if(!strcmp(Atmrec.frag[0]->res[c1]->atom[c2]->atomname,"CA"))
+                                       {
+                                           XORT[c1] = Atmrec.frag[0]->res[c1]->atom[c2]->x;
+                                           YORT[c1] = Atmrec.frag[0]->res[c1]->atom[c2]->y;
+                                           ZORT[c1] = Atmrec.frag[0]->res[c1]->atom[c2]->z;
+                                           break;
+                                       }
+                                   }
+                                }
+                            }
+                            dist = sqrt(pow((XORT[con1]-XORT[con2]),2) + pow((YORT[con1]-YORT[con2]),2) + pow((ZORT[con1]-ZORT[con2]),2));
+                            if( dist < 8.0)
+                                break;
+                        }
+                    }
+                 
+
+                    /* Calculate the torsion angle score */
 					new_score=0.0;
 					for(k=0, k2=start_res ; k2 < start_res+length ; k++, k2++)
 					{
@@ -593,10 +775,23 @@ int main(int argc,char* argv[])
 					if(!VALIDATE)
 					{
 							new_frag->line[strlen(new_frag->line)-1]='\t';
-							printf("%s%.2lf\n",new_frag->line,new_score);	
+                            if(!COEVO || (COEVO && !COEVO_ONLY && ( !flag || dist < 8.0 ) ) || (COEVO && COEVO_ONLY && flag  /*&& dist < 8.0*/) )
+    							printf("%s%.2lf",new_frag->line,new_score);	
 					}
 					else
-						printf("%s\t%.2lf\n",new_frag->line,new_score);	
+                    {
+                        if(!COEVO || (COEVO && !COEVO_ONLY && ( !flag || dist < 8.0 ) ) || (COEVO && COEVO_ONLY && flag /* && dist < 8.0 */) )
+    						printf("%s\t%.2lf",new_frag->line,new_score);	
+                    }
+                    if(PRINT_DIST)
+                    {
+                        if(flag)
+                            printf("\t%.2f\n",dist);
+                        else
+                            printf("\t-1.0\n");
+                    }
+                    else
+                        printf("\n");
 				}
 			}
 		}
@@ -614,10 +809,11 @@ int main(int argc,char* argv[])
 
 				sprintf(Atmrec.frag[0]->fname,"%s/%c%c%c%c.pdb",getenv("PDB"),tolower(Header[0]),tolower(Header[1]),tolower(Header[2]),tolower(Header[3]));
 				top = coordcol(Atmrec.frag[top]->fname,top,length,Atmrec.frag[top]->start_res,Chain,DB_Seq);
+
 				if(VALIDATE)
 				{				
-	                                sprintf(Atmrec.frag[1]->fname,"./%s.pdb",argv[1]);
-					top = coordcol(Atmrec.frag[top]->fname,top,length,Atmrec.frag[top]->start_res,'A',NULL);
+                    strcpy(Atmrec.frag[1]->fname,pdb_file);
+					top = coordcol(Atmrec.frag[top]->fname,top,length,Atmrec.frag[top]->start_res,Query_Chain,NULL);
 				}
 
 				if(top<1+VALIDATE) /* If, by any reason, was not capable of finding the second fragment! */
@@ -639,6 +835,56 @@ int main(int argc,char* argv[])
 					if( coordcol2(all,Header,Chain,DB_Seq,&start_res) ) 
 						continue;
 
+
+                    /* If contacts were provided, check if any contacts occur within the fragment. */
+                    if(COEVO)
+                    {
+                        flag=0;
+                        for(ct=0;ct<num_con;ct++)
+                        {
+                            con1=Contacts[ct][0]-1-start2;
+                            con2=Contacts[ct][1]-1-start2;
+
+                            if(con1<0 || con1 >= length || con2<0 || con2 >= length)
+                                continue;
+
+                            flag=1;
+                            /* If it got here, it means that a contact exists within the fragment */
+                            for(c1=0;c1<length;c1++)
+                            {
+                                found_cb=0;
+                                for(c2=0;c2<Atmrec.frag[0]->res[c1]->numatom;c2++)
+                                {
+                                    if(!strcmp(Atmrec.frag[0]->res[c1]->atom[c2]->atomname,"CB"))
+                                    {
+                                        XORT[c1] = Atmrec.frag[0]->res[c1]->atom[c2]->x;
+                                        YORT[c1] = Atmrec.frag[0]->res[c1]->atom[c2]->y;
+                                        ZORT[c1] = Atmrec.frag[0]->res[c1]->atom[c2]->z;
+                                        found_cb=1;
+                                        break;
+                                    }
+                                }
+                                if(!found_cb)
+                                {
+                                   for(c2=0;c2<Atmrec.frag[0]->res[c1]->numatom;c2++)
+                                   {
+                                       if(!strcmp(Atmrec.frag[0]->res[c1]->atom[c2]->atomname,"CA"))
+                                       {
+                                           XORT[c1] = Atmrec.frag[0]->res[c1]->atom[c2]->x;
+                                           YORT[c1] = Atmrec.frag[0]->res[c1]->atom[c2]->y;
+                                           ZORT[c1] = Atmrec.frag[0]->res[c1]->atom[c2]->z;
+                                           break;
+                                       }
+                                   }
+                                }
+                            }
+                            dist = sqrt(pow((XORT[con1]-XORT[con2]),2) + pow((YORT[con1]-YORT[con2]),2) + pow((ZORT[con1]-ZORT[con2]),2));
+                            if( dist < 8.0)
+                                break;
+                        }
+                    }
+
+                    /* Calculate the torsion angle score */
 					new_score=0.0;
 					for(k=0, k2=start_res ; k2 < start_res+length && k2 < all->numres; k++, k2++)
 					{
@@ -660,10 +906,23 @@ int main(int argc,char* argv[])
 					if(!VALIDATE)
 					{
 							new_frag->line[strlen(new_frag->line)-1]='\t';
-							printf("%s%.2lf\n",new_frag->line,new_score);	
+                            if(!COEVO || (COEVO && !COEVO_ONLY && ( !flag || dist < 8.0 ) ) || (COEVO && COEVO_ONLY && flag /* && dist < 8.0 */) )
+                                printf("%s%.2lf",new_frag->line,new_score);
 					}
 					else
-						printf("%s\t%.2lf\n",new_frag->line,new_score);	
+                    {
+                        if(!COEVO || (COEVO && !COEVO_ONLY && ( !flag || dist < 8.0 ) ) || (COEVO && COEVO_ONLY && flag /* && dist < 8.0 */) )
+                            printf("%s\t%.2lf",new_frag->line,new_score);
+                    }
+                    if(PRINT_DIST)
+                    {   
+                        if(flag)
+                            printf("\t%.2f\n",dist);
+                        else
+                            printf("\t-1.0\n");
+                    }
+                    else
+                        printf("\n");
 				}
 			}
 		}
