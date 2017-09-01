@@ -73,6 +73,7 @@ The following example should generate the fragment library file "1AIU.lib".
 To generate fragment libraries for molecular replacement using Flib, you should use the script ``run_flib_ample_pipeline`` as follows:
 
 .. code:: bash
+
    $> export FLIB=<PATH TO FLIB>
    $> export PDB=<PATH TO YOUR LOCAL INSTALLATION OF THE PDB>
    $> $FLIB/run_flib_ample_pipeline 1AIU
