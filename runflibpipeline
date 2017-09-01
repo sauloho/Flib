@@ -132,7 +132,7 @@ fi
 ##### FLIB #####
 if [ "$generate_flib" = true ] ; then
 	echo "Generating FLIB File:"
-   	$FLIB/bin/Flib $OUTPUT > $OUTPUT.lib3000 2> $OUTPUT.log           # Generates LIB3000
+   	$FLIB/bin/Flib -i $OUTPUT > $OUTPUT.lib3000 2> $OUTPUT.log           # Generates LIB3000
 	sort -k 10,10n -k 13,13n $OUTPUT.lib3000 > $OUTPUT.tmp;                   # Sorts LIB3000
 	mv $OUTPUT.tmp $OUTPUT.lib3000;                                           
 	cp $OUTPUT.lib3000 $OUTPUT.lib3000_ori
