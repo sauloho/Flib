@@ -126,8 +126,7 @@ def main():
             fragment_entries += [(fragment_score, entry)]
 
     if args.fragment_number > 0:
-        fragment_entries = sorted(fragment_entries, key=lambda x: x[0],
-                                  reverse=True)
+        fragment_entries = sorted(fragment_entries, key=lambda x: x[0])
         fragment_entries = fragment_entries[:args.fragment_number]
 
     sys.stdout.write("Extracting a total of %d fragments ...\n" %
