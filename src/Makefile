@@ -2,6 +2,9 @@
 #       Makefile for Flib                                       #
 #################################################################
 
+#### Directories
+FLIB_BIN		= ../bin
+
 #### CFLAGS     	Flags to pass to C compiler.
 CFLAGS          	= -O2
 
@@ -12,7 +15,7 @@ clean:
 			/bin/rm -rf *.o Flib Flib_Enrich LibValidator get_length filterlib filterlib2 parse_hhr extract
 
 install: 
-			/bin/cp Flib extract filterlib filterlib2 Flib_Enrich parse_hhr get_length LibValidator ../bin
+			/bin/mv Flib extract filterlib filterlib2 Flib_Enrich parse_hhr get_length LibValidator $(FLIB_BIN)
 
 Flib:			slink.h jacobi.h Flib.o coordcol_FS2.o super4.o jacobi.o sparse.o
 			$(CC) $(CFLAGS) Flib.o coordcol_FS2.o super4.o jacobi.o sparse.o -lm -o Flib
