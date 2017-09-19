@@ -1,0 +1,80 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+
+__author__ = "Felix Simkovic"
+__date__ = "16 Sep 2017"
+
+import argparse
+import multiprocessing
+import numpy as np
+import os
+import shutil
+import sys
+import tempfile
+import warnings
+warnings.simplefilter("ignore")
+
+
+def generate_command_line_interface():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", dest="cores", default=1,
+                        type=int, help="Number of cores")
+    parser.add_argument("-i", dest="input", nargs="+",
+                        required=True, help="Flib fragment library file(s)")
+    parser.add_argument("-o", dest="output", required=True,
+                        help="Output directory")
+    parser.add_argument("-p", dest="database", required=True,
+                        help="Path to the PDB structure database")
+    return parser.parse_args()
+
+
+def extract_data_from_flib_line(line):
+    pdb, chain, start, end, _, _, _, _, length, _, _, _, _ = line.strip().split()
+    pdb = pdb.lower()
+    start, end, length = int(start), int(end), int(length)
+    # REM: The fragment extracted matches the sequence, not the indices.
+    # REM: Depending on the desired fragment, the +3 might have to be removed
+    return pdb, chain, start + 3, end + 3, length
+
+
+def extract_fragment_coordinates(fragment_entry):
+    structure_file, fragment_file, fragment_chain, fragment_start, fragment_end = fragment_entry
+    fragment_residue_range = range(fragment_start, fragment_end + 1)
+    with open(structure_file, "r") as f_in, open(fragment_file, "w") as f_out:
+        for line in f_in:
+            if line.startswith("ATOM"):
+                atom, chain, resseq = line[12:16], line[21].strip(), int(
+                    line[22:26])
+                if fragment_chain == chain and resseq in fragment_residue_range:
+                    f_out.write(line)
+
+
+def main():
+    args = generate_command_line_interface()
+    if os.path.isdir(args.output):
+        shutil.rmtree(args.output)
+    os.mkdir(args.output)
+    fragment_entries = []
+    print("Provided Flib libraries are %s ..." % ", ".join(args.input))
+    for lib_file in args.input:
+        for fragl in open(lib_file, 'r'):
+            if not fragl.strip():
+                continue
+            fragment_pdb, fragment_chain, fragment_start, fragment_end, fragment_length = extract_data_from_flib_line(
+                fragl)
+            structure_file = os.path.join(args.database, fragment_pdb + '.pdb')
+            name_tag = "_".join(
+                [fragment_pdb + fragment_chain, str(fragment_start), str(fragment_end)])
+            fragment_file = os.path.join(args.output, name_tag + '.pdb')
+            entry = [structure_file, fragment_file,
+                     fragment_chain, fragment_start, fragment_end]
+            fragment_entries += [entry]
+
+    print("Extracting a total of %d fragments ..." % len(fragment_entries))
+    multiprocessing.Pool(args.cores).map(
+        extract_fragment_coordinates, fragment_entries)
+
+
+if __name__ == "__main__":
+    main()
