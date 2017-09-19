@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
+from __future__ import division, print_function
 
 __author__ = "Felix Simkovic"
 __date__ = "16 Sep 2017"
 
 import argparse
+import Bio.PDB
+import Bio.PDB.Polypeptide
+import Bio.SeqIO
+import math
 import multiprocessing
-import numpy as np
 import os
 import shutil
 import sys
@@ -17,9 +20,12 @@ warnings.simplefilter("ignore")
 
 
 def generate_command_line_interface():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-c", dest="cores", default=1,
-                        type=int, help="Number of cores")
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-n", dest="fragment_number", default=0,
+                        type=int, help="Top-N fragments by Flib score [0 means all]")
+    parser.add_argument("-t", dest="threads", default=1,
+                        type=int, help="Number of threads")
     parser.add_argument("-i", dest="input", nargs="+",
                         required=True, help="Flib fragment library file(s)")
     parser.add_argument("-o", dest="output", required=True,
@@ -30,24 +36,70 @@ def generate_command_line_interface():
 
 
 def extract_data_from_flib_line(line):
-    pdb, chain, start, end, _, _, _, _, length, _, _, _, _ = line.strip().split()
-    pdb = pdb.lower()
-    start, end, length = int(start), int(end), int(length)
-    # REM: The fragment extracted matches the sequence, not the indices.
-    # REM: Depending on the desired fragment, the +3 might have to be removed
-    return pdb, chain, start + 3, end + 3, length
+    pdb, chain, start, end, seq, _, _, _, length, _, _, _, score = line.strip().split()
+    return pdb.lower(), chain, int(start), int(end), seq, int(length), float(score)
 
 
 def extract_fragment_coordinates(fragment_entry):
-    structure_file, fragment_file, fragment_chain, fragment_start, fragment_end = fragment_entry
-    fragment_residue_range = range(fragment_start, fragment_end + 1)
-    with open(structure_file, "r") as f_in, open(fragment_file, "w") as f_out:
-        for line in f_in:
-            if line.startswith("ATOM"):
-                atom, chain, resseq = line[12:16], line[21].strip(), int(
-                    line[22:26])
-                if fragment_chain == chain and resseq in fragment_residue_range:
-                    f_out.write(line)
+    structure_file, fragment_file, fragment_chain, relative_fragment_start, relative_fragment_end, fragment_sequence \
+        = fragment_entry
+
+    structure = read_structure_file(structure_file)
+    chain = structure[0][fragment_chain]
+
+    ppb = Bio.PDB.PPBuilder()
+    peptides = ppb.build_peptides(chain)
+    offset = 0
+    for i, pep in enumerate(peptides):
+        peptide_sequence = str(pep.get_sequence())
+        if fragment_sequence in peptide_sequence:
+            offset = relative_fragment_start \
+                - peptide_sequence.index(fragment_sequence)
+            break
+
+    try:
+        absolute_fragment_start = pep[relative_fragment_start - offset].id[1]
+        absolute_fragment_end = pep[relative_fragment_end - offset].id[1]
+    except:
+        sys.stderr.write("Error extrating fragment: %s\n" % fragment_file)
+        return
+
+    residues_to_keep = range(absolute_fragment_start,
+                             absolute_fragment_end + 1)
+    for model in structure.copy():
+        for chain in model:
+            if chain.id == fragment_chain:
+                for residue in chain:
+                    if int(residue.id[1]) not in residues_to_keep:
+                        structure[model.id][chain.id].detach_child(residue.id)
+            else:
+                structure[model.id].detach_child(chain.id)
+
+    save_fragment_file(fragment_file, structure)
+    validate_fragment_coords(fragment_file, fragment_sequence)
+
+
+def read_structure_file(structure_file):
+    parser = Bio.PDB.PDBParser(PERMISSIVE=1)
+    return parser.get_structure("", structure_file)
+
+
+def save_fragment_file(fragment_f, structure):
+    s = Bio.PDB.PDBIO()
+    s.set_structure(structure)
+    s.save(fragment_f)
+
+
+def validate_fragment_coords(fragment_f, fragment_seq):
+    with open(fragment_f, "r") as f_in:
+        sequences = list(Bio.SeqIO.parse(f_in, "pdb-atom"))
+        written_seq = str(sequences[0].seq).replace("X", "")
+        if len(sequences) > 1:
+            sys.stderr.write("More than one sequence written ...\n")
+        elif written_seq != fragment_seq:
+            sys.stderr.write("Sequences do not match ...\n")
+            sys.stderr.write(fragment_seq + "\n")
+            sys.stderr.write(written_seq + "\n")
 
 
 def main():
@@ -55,25 +107,34 @@ def main():
     if os.path.isdir(args.output):
         shutil.rmtree(args.output)
     os.mkdir(args.output)
+    sys.stdout.write("Provided Flib libraries are %s ...\n" %
+                     ", ".join(args.input))
+
     fragment_entries = []
-    print("Provided Flib libraries are %s ..." % ", ".join(args.input))
     for lib_file in args.input:
         for fragl in open(lib_file, 'r'):
             if not fragl.strip():
                 continue
-            fragment_pdb, fragment_chain, fragment_start, fragment_end, fragment_length = extract_data_from_flib_line(
-                fragl)
+            fragment_pdb, fragment_chain, fragment_start, \
+                fragment_end, fragment_sequence, fragment_length, fragment_score \
+                = extract_data_from_flib_line(fragl)
             structure_file = os.path.join(args.database, fragment_pdb + '.pdb')
-            name_tag = "_".join(
-                [fragment_pdb + fragment_chain, str(fragment_start), str(fragment_end)])
-            fragment_file = os.path.join(args.output, name_tag + '.pdb')
-            entry = [structure_file, fragment_file,
-                     fragment_chain, fragment_start, fragment_end]
-            fragment_entries += [entry]
+            fragment_file = os.path.join(args.output,
+                                         fragment_pdb + "_{}.pdb".format(fragment_sequence))
+            entry = [structure_file, fragment_file, fragment_chain,
+                     fragment_start, fragment_end, fragment_sequence]
+            fragment_entries += [(fragment_score, entry)]
 
-    print("Extracting a total of %d fragments ..." % len(fragment_entries))
-    multiprocessing.Pool(args.cores).map(
-        extract_fragment_coordinates, fragment_entries)
+    if args.fragment_number > 0:
+        fragment_entries = sorted(fragment_entries, key=lambda x: x[0],
+                                  reverse=True)
+        fragment_entries = fragment_entries[:args.fragment_number]
+
+    sys.stdout.write("Extracting a total of %d fragments ...\n" %
+                     len(fragment_entries))
+    pool = multiprocessing.Pool(args.threads)
+    fragments_to_extract = [e[1] for e in fragment_entries]
+    pool.map(extract_fragment_coordinates, fragments_to_extract)
 
 
 if __name__ == "__main__":
